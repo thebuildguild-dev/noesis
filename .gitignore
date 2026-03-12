@@ -1,0 +1,33 @@
+# Node.js dependencies
+node_modules/
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Logs
+*.log
+logs/
+
+# Build outputs
+dist/
+build/
+.next/
+coverage/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editor folders
+.vscode/
+.idea/
+
+# Docker artifacts
+docker-data/
+postgres-data/
+
+# Temporary files
+*.tmp
+*.temp
