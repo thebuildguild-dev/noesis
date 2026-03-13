@@ -24,6 +24,7 @@ import * as habitsApi from '../../api/habits.api.js'
 import * as streakApi from '../../api/streak.api.js'
 import config from '../../config/index.js'
 import { radius } from '../../utils/styles.js'
+import InterrogatorModal from '../../components/ui/InterrogatorModal.jsx'
 
 const MONTH_NAMES = [
   'Jan',
@@ -295,14 +296,14 @@ export default function HabitDetailPage() {
   const navigate = useNavigate()
   const { habits, fetchHabits, deleteHabit } = useHabitsStore()
   const { showSuccess, showError } = useAlertStore()
-  const { loading: deleting, call: callDelete } = useApi()
+  const { call: callDelete } = useApi()
 
   const [habit, setHabit] = useState(null)
   const [streak, setStreak] = useState(null)
   const [logs, setLogs] = useState(null)
   const [proofs, setProofs] = useState(null)
   const [loading, setLoading] = useState(true)
-  const [confirming, setConfirming] = useState(false)
+  const [interrogating, setInterrogating] = useState(false)
 
   useEffect(() => {
     const found = habits.find((h) => h.id === id)
@@ -351,7 +352,6 @@ export default function HabitDetailPage() {
       navigate('/habits', { replace: true })
     } catch (err) {
       showError(err.message ?? 'Failed to delete habit')
-      setConfirming(false)
     }
   }
 
@@ -381,33 +381,12 @@ export default function HabitDetailPage() {
             <ArrowLeft size={16} strokeWidth={2.5} /> all habits
           </button>
 
-          {confirming ? (
-            <div className="flex items-center gap-2">
-              <span className="font-hand text-sm text-ink/50">Delete this habit?</span>
-              <button
-                onClick={handleDelete}
-                disabled={deleting}
-                className="px-3 py-1 font-hand text-sm text-white bg-accent border border-accent disabled:opacity-50"
-                style={{ borderRadius: '6px' }}
-              >
-                {deleting ? '…' : 'yes, delete'}
-              </button>
-              <button
-                onClick={() => setConfirming(false)}
-                className="px-3 py-1 font-hand text-sm text-ink/50 hover:text-ink border border-muted"
-                style={{ borderRadius: '6px' }}
-              >
-                cancel
-              </button>
-            </div>
-          ) : (
-            <button
-              onClick={() => setConfirming(true)}
-              className="flex items-center gap-1.5 px-3 py-1.5 font-hand text-sm text-ink/40 hover:text-accent hover:bg-[#fff0f0] border border-transparent hover:border-accent/30 rounded transition-colors"
-            >
-              <Trash2 size={14} strokeWidth={2.5} /> delete habit
-            </button>
-          )}
+          <button
+            onClick={() => setInterrogating(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 font-hand text-sm text-ink/40 hover:text-accent hover:bg-[#fff0f0] border border-transparent hover:border-accent/30 rounded transition-colors"
+          >
+            <Trash2 size={14} strokeWidth={2.5} /> delete habit
+          </button>
         </div>
 
         <h1 className="font-marker text-3xl font-bold text-ink mb-1">{habit.title}</h1>
@@ -478,6 +457,18 @@ export default function HabitDetailPage() {
             <ProofHistorySection proofs={proofs} />
           )}
         </Card>
+      )}
+
+      {interrogating && (
+        <InterrogatorModal
+          entityType="habit"
+          entityName={habit.title}
+          onConfirm={() => {
+            setInterrogating(false)
+            handleDelete()
+          }}
+          onCancel={() => setInterrogating(false)}
+        />
       )}
     </AppLayout>
   )

@@ -8,6 +8,7 @@ import { AppLayout } from '../../components/layout/AppLayout.jsx'
 import { Card } from '../../components/ui/Card.jsx'
 import { Button } from '../../components/ui/Button.jsx'
 import { SkeletonCard } from '../../components/ui/SkeletonCard.jsx'
+import InterrogatorModal from '../../components/ui/InterrogatorModal.jsx'
 
 function formatDateLong(d) {
   return new Date(d).toLocaleDateString('en-US', {
@@ -36,9 +37,9 @@ export default function JournalViewPage() {
   const { state } = useLocation()
   const { entries, loading, fetchEntries, deleteEntry } = useJournalStore()
   const { showSuccess, showError } = useAlertStore()
-  const { loading: deleting, call: callDelete } = useApi()
+  const { call: callDelete } = useApi()
   const [entry, setEntry] = useState(state?.entry ?? null)
-  const [confirming, setConfirming] = useState(false)
+  const [interrogating, setInterrogating] = useState(false)
 
   useEffect(() => {
     if (entry) return
@@ -65,7 +66,6 @@ export default function JournalViewPage() {
       navigate('/journal', { replace: true })
     } catch (err) {
       showError(err.message ?? 'Failed to delete entry')
-      setConfirming(false)
     }
   }
 
@@ -95,38 +95,15 @@ export default function JournalViewPage() {
         </button>
 
         <div className="flex items-center gap-2">
-          {confirming ? (
-            <>
-              <span className="font-hand text-sm text-ink/50">Delete this entry?</span>
-              <button
-                onClick={handleDelete}
-                disabled={deleting}
-                className="px-3 py-1 font-hand text-sm text-white bg-accent border border-accent disabled:opacity-50"
-                style={{ borderRadius: '6px' }}
-              >
-                {deleting ? '…' : 'yes, delete'}
-              </button>
-              <button
-                onClick={() => setConfirming(false)}
-                className="px-3 py-1 font-hand text-sm text-ink/50 hover:text-ink border border-muted"
-                style={{ borderRadius: '6px' }}
-              >
-                cancel
-              </button>
-            </>
-          ) : (
-            <>
-              <Button variant="secondary" size="sm" onClick={handleEdit}>
-                <Pencil size={14} strokeWidth={2.5} /> edit
-              </Button>
-              <button
-                onClick={() => setConfirming(true)}
-                className="flex items-center gap-1.5 px-3 py-1.5 font-hand text-sm text-ink/40 hover:text-accent hover:bg-[#fff0f0] border border-transparent hover:border-accent/30 rounded transition-colors"
-              >
-                <Trash2 size={14} strokeWidth={2.5} /> delete
-              </button>
-            </>
-          )}
+          <Button variant="secondary" size="sm" onClick={handleEdit}>
+            <Pencil size={14} strokeWidth={2.5} /> edit
+          </Button>
+          <button
+            onClick={() => setInterrogating(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 font-hand text-sm text-ink/40 hover:text-accent hover:bg-[#fff0f0] border border-transparent hover:border-accent/30 rounded transition-colors"
+          >
+            <Trash2 size={14} strokeWidth={2.5} /> delete
+          </button>
         </div>
       </div>
 
@@ -157,6 +134,18 @@ export default function JournalViewPage() {
           </p>
         )}
       </Card>
+
+      {interrogating && (
+        <InterrogatorModal
+          entityType="journal entry"
+          entityName={entry.content.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 60)}
+          onConfirm={() => {
+            setInterrogating(false)
+            handleDelete()
+          }}
+          onCancel={() => setInterrogating(false)}
+        />
+      )}
     </AppLayout>
   )
 }
