@@ -3,6 +3,7 @@ import app from './app.js'
 import { corsOrigins } from './middlewares/cors.middleware.js'
 import initDatabase from './db/init.js'
 import { seedDemoUser } from './db/seed.js'
+import { startAuditorJob } from './jobs/auditor.job.js'
 
 const { port, name, env } = config.app
 
@@ -17,6 +18,7 @@ async function start() {
     const origins = Array.isArray(corsOrigins) ? corsOrigins.join(', ') : corsOrigins
     console.log(`${name} server running on port ${port} [${env}]`)
     console.log(`CORS allowed origins: ${origins}`)
+    startAuditorJob()
   })
 }
 

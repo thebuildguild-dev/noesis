@@ -18,7 +18,9 @@ const required = [
   'DEMO_USER_PASSWORD',
   'HF_API_KEY',
   'HF_MODEL',
-  'HF_SENTIMENT_MODEL'
+  'HF_SENTIMENT_MODEL',
+  'GEMINI_API_KEY',
+  'GEMINI_GENERATION_MODEL'
 ]
 
 for (const key of required) {
@@ -60,6 +62,10 @@ const config = {
     apiKey: process.env.HF_API_KEY,
     model: process.env.HF_MODEL,
     sentimentModel: process.env.HF_SENTIMENT_MODEL
+  },
+  gemini: {
+    apiKey: process.env.GEMINI_API_KEY,
+    generationModel: process.env.GEMINI_GENERATION_MODEL
   }
 }
 

@@ -1,4 +1,5 @@
 import { GoogleGenAI } from '@google/genai'
+import config from '../../config/index.js'
 
 const PROMPT = `Analyze the following journal entry.
 
@@ -14,8 +15,8 @@ Example output:
 Journal entry:`
 
 async function analyzeJournalEntry(text) {
-  const apiKey = process.env.GEMINI_API_KEY
-  const modelName = process.env.GEMINI_GENERATION_MODEL
+  const apiKey = config.gemini.apiKey
+  const modelName = config.gemini.generationModel
 
   if (!apiKey || !modelName) {
     return null

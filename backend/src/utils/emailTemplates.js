@@ -124,4 +124,45 @@ function forgotPassword({ email, resetUrl }) {
   }
 }
 
-export { welcome, loginAlert, forgotPassword }
+const ESCALATION_LABEL = {
+  1: 'Friendly Reminder',
+  2: 'Accountability Check',
+  3: 'Final Warning'
+}
+
+const ESCALATION_COLOR = {
+  1: '#16a34a',
+  2: '#d97706',
+  3: '#dc2626'
+}
+
+function accountability({ email, habitTitle, daysMissed, message, escalationLevel }) {
+  const appName = config.app.name
+  const level = escalationLevel || 1
+  const label = ESCALATION_LABEL[level] || ESCALATION_LABEL[1]
+  const accentColor = ESCALATION_COLOR[level] || ESCALATION_COLOR[1]
+  const body = `
+    <p style="margin:0 0 4px;font-size:22px;font-weight:700;color:#2d2d2d;">Your coach has a message.</p>
+    <p style="margin:0 0 20px;color:#6b7280;font-size:13px;">habit accountability – <span style="color:${accentColor};font-weight:600;">${label}</span></p>
+    <p style="margin:0 0 16px;">Hi ${email},</p>
+    <table cellpadding="0" cellspacing="0" style="margin:0 0 20px;border:2px solid #e5e0d8;border-radius:6px 2px 6px 2px;width:100%;font-size:14px;">
+      <tr>
+        <td style="padding:10px 16px;color:#9ca3af;white-space:nowrap;border-bottom:1px solid #e5e0d8;">Habit</td>
+        <td style="padding:10px 16px;color:#2d2d2d;font-weight:600;border-bottom:1px solid #e5e0d8;">${habitTitle}</td>
+      </tr>
+      <tr>
+        <td style="padding:10px 16px;color:#9ca3af;white-space:nowrap;">Days missed</td>
+        <td style="padding:10px 16px;color:${accentColor};font-weight:700;">${daysMissed}</td>
+      </tr>
+    </table>
+    <p style="margin:0 0 8px;font-size:14px;color:#6b7280;text-transform:uppercase;letter-spacing:0.5px;">Message from your coach</p>
+    <p style="margin:0 0 24px;padding:16px;background:#fdfbf7;border-left:3px solid ${accentColor};font-style:italic;color:#2d2d2d;line-height:1.7;">${message}</p>
+    <p style="margin:0;font-size:13px;color:#9ca3af;">Open ${appName} to get back on track.</p>
+  `
+  return {
+    subject: `[${appName}] Your coach is watching — "${habitTitle}" (${daysMissed}d missed)`,
+    html: layout(`Habit accountability – ${label}`, body)
+  }
+}
+
+export { welcome, loginAlert, forgotPassword, accountability }

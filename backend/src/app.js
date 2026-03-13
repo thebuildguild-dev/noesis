@@ -8,6 +8,7 @@ import healthRouter from './system/health.routes.js'
 import authRouter from './modules/auth/index.js'
 import habitsRouter from './modules/habits/index.js'
 import journalRouter from './modules/journal/index.js'
+import agentRouter from './modules/agent/agent.routes.js'
 
 const app = express()
 
@@ -26,6 +27,7 @@ app.use('/api/health', healthRouter)
 app.use('/api/auth', authRouter)
 app.use('/api/habits', habitsRouter)
 app.use('/api/journal', journalRouter)
+app.use('/api/agent', agentRouter)
 
 // 404 handler
 app.use((req, res) => {

@@ -362,10 +362,12 @@ async function seedDemoDataForUser(client, userId) {
   }
 
   let logCount = 0
-  for (let day = 0; day < 14; day++) {
+  // Start from day 3 (skip today, yesterday, and day before) so the auditor
+  // always detects a broken streak (days_missed >= 3) for every demo habit.
+  for (let day = 3; day < 17; day++) {
     const dateStr = daysAgoDate(day)
     for (const habitId of habitIds) {
-      if (Math.random() > 0.78) continue
+      if (Math.random() > 0.55) continue
       const { rowCount } = await client.query(
         `INSERT INTO habit_logs (habit_id, completed_date)
          VALUES ($1, $2)
