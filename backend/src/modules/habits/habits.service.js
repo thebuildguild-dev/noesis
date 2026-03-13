@@ -23,6 +23,8 @@ async function createHabit(userId, title) {
      RETURNING id, title, created_at`,
     [userId, title]
   )
+  await cacheDelete(CacheKeys.streakAll(userId))
+  await cacheDelete(CacheKeys.dashboard(userId))
   return rows[0]
 }
 
