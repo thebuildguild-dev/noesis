@@ -43,7 +43,7 @@ export function HeatmapGrid({ activity = [], totalHabits = 1 }) {
           {dayLabels.map((l, i) => (
             <span
               key={i}
-              className="font-hand text-[11px] text-ink/30 w-5 text-center leading-none h-5 flex items-center justify-center"
+              className="font-hand text-[11px] text-ink w-5 text-center leading-none h-5 flex items-center justify-center"
             >
               {l}
             </span>
@@ -71,11 +71,11 @@ export function HeatmapGrid({ activity = [], totalHabits = 1 }) {
         ))}
       </div>
       <div className="flex items-center gap-1.5 mt-4">
-        <span className="font-hand text-[11px] text-ink/40">less</span>
+        <span className="font-hand text-[11px] text-ink">less</span>
         {colors.map((c, i) => (
           <div key={i} className={`w-3.5 h-3.5 rounded border border-ink/10 ${c}`} />
         ))}
-        <span className="font-hand text-[11px] text-ink/40">more</span>
+        <span className="font-hand text-[11px] text-ink">more</span>
       </div>
     </div>
   )

@@ -75,7 +75,7 @@ function EntryCard({ entry, onDelete }) {
               <span className="font-marker text-sm font-bold text-ink">
                 {formatDateLong(entry.created_at)}
               </span>
-              <span className="font-hand text-xs text-ink/40 ml-1.5">
+              <span className="font-hand text-xs text-ink ml-1.5">
                 {formatTime(entry.created_at)}
               </span>
             </div>
@@ -91,7 +91,7 @@ function EntryCard({ entry, onDelete }) {
                   e.stopPropagation()
                   navigate(`/journal/editor?edit=${entry.id}`, { state: { entry } })
                 }}
-                className="p-1 text-ink/40 hover:text-pen-blue transition-colors rounded"
+                className="p-1 text-ink/60 hover:text-pen-blue transition-colors rounded"
                 title="Edit entry"
               >
                 <Pencil size={13} strokeWidth={2.5} />
@@ -101,7 +101,7 @@ function EntryCard({ entry, onDelete }) {
                   e.stopPropagation()
                   setInterrogating(true)
                 }}
-                className="p-1 text-ink/40 hover:text-accent transition-colors rounded"
+                className="p-1 text-ink/60 hover:text-accent transition-colors rounded"
                 title="Delete entry"
               >
                 <Trash2 size={13} strokeWidth={2.5} />
@@ -116,10 +116,10 @@ function EntryCard({ entry, onDelete }) {
 
         <div className="flex items-center justify-between mt-3 pt-2 border-t border-dashed border-muted/60">
           <div className="flex items-center gap-2">
-            <span className="font-hand text-xs text-ink/30">
+            <span className="font-hand text-xs text-ink">
               {wc} word{wc !== 1 ? 's' : ''}
             </span>
-            {isEdited && <span className="font-hand text-xs text-ink/25 italic">· edited</span>}
+            {isEdited && <span className="font-hand text-xs text-ink/60 italic">· edited</span>}
           </div>
           <span className="font-hand text-xs text-pen-blue">read more →</span>
         </div>
@@ -181,7 +181,7 @@ export default function JournalPage() {
         />
         {error && <p className="font-hand text-sm text-accent mt-2">{error}</p>}
         <div className="flex items-center justify-between mt-3">
-          <span className="font-hand text-xs text-ink/30">
+          <span className="font-hand text-xs text-ink">
             {content.replace(/<[^>]*>/g, '').trim()
               ? `${wc} word${wc !== 1 ? 's' : ''}`
               : 'start writing…'}
@@ -197,9 +197,7 @@ export default function JournalPage() {
 
       <div className="flex items-center justify-between mb-4">
         <h2 className="font-marker text-xl font-bold text-ink">Past entries</h2>
-        {pagination && (
-          <span className="font-hand text-sm text-ink/40">{pagination.total} total</span>
-        )}
+        {pagination && <span className="font-hand text-sm text-ink">{pagination.total} total</span>}
       </div>
 
       {loading ? (
@@ -210,9 +208,9 @@ export default function JournalPage() {
         </div>
       ) : entries.length === 0 ? (
         <div className="text-center py-16">
-          <p className="font-marker text-5xl text-ink/10 mb-4">✦</p>
-          <p className="font-marker text-2xl text-ink/30 mb-2">nothing written yet</p>
-          <p className="font-hand text-ink/40">
+          <p className="font-marker text-5xl text-ink/40 mb-4">✦</p>
+          <p className="font-marker text-2xl text-ink mb-2">nothing written yet</p>
+          <p className="font-hand text-ink">
             Reflection builds consistency — write your first entry above ↑
           </p>
         </div>
@@ -234,7 +232,7 @@ export default function JournalPage() {
           >
             <ChevronLeft size={16} strokeWidth={3} /> prev
           </Button>
-          <span className="font-hand text-ink/60">
+          <span className="font-hand text-ink">
             {page} / {pagination.totalPages}
           </span>
           <Button

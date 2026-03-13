@@ -27,7 +27,7 @@ export function Sidebar() {
       {/* Logo */}
       <div className="px-6 py-6 border-b-2 border-ink">
         <span className="font-marker text-2xl font-bold text-ink">{config.app.name}</span>
-        <p className="font-hand text-sm text-ink/50 mt-0.5">your thinking space</p>
+        <p className="font-hand text-sm text-ink mt-0.5">your thinking space</p>
       </div>
 
       {/* Nav */}
@@ -61,7 +61,7 @@ export function Sidebar() {
         <button
           onClick={handleLogout}
           style={{ borderRadius: radius.btn }}
-          className="w-full flex items-center gap-3 px-4 py-2.5 font-hand text-base text-ink/60 border-2 border-transparent hover:border-accent hover:text-accent hover:bg-[#fff0f0] transition-all duration-100"
+          className="w-full flex items-center gap-3 px-4 py-2.5 font-hand text-base text-ink border-2 border-transparent hover:border-accent hover:text-accent hover:bg-[#fff0f0] transition-all duration-100"
         >
           <LogOut size={18} strokeWidth={2.5} />
           Logout

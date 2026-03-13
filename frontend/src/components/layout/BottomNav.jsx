@@ -20,7 +20,7 @@ export function BottomNav() {
           className={({ isActive }) =>
             [
               'flex-1 flex flex-col items-center gap-0.5 py-3 font-hand text-xs transition-colors',
-              isActive ? 'text-ink font-semibold' : 'text-ink/50'
+              isActive ? 'text-ink font-semibold' : 'text-ink/70'
             ].join(' ')
           }
         >

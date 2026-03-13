@@ -118,7 +118,7 @@ function HabitCard({ habit, onComplete, onDelete, onProof }) {
               {habit.title}
             </p>
             {habit.requires_proof && (
-              <span className="inline-flex items-center gap-1 font-hand text-[10px] text-[#1976d2]/70 mt-0.5">
+              <span className="inline-flex items-center gap-1 font-hand text-[10px] text-[#1976d2] mt-0.5">
                 <Camera size={10} strokeWidth={2.5} />
                 proof required
               </span>
@@ -126,7 +126,7 @@ function HabitCard({ habit, onComplete, onDelete, onProof }) {
           </div>
           {currentStreak > 0 && (
             <div
-              className="flex items-center gap-1 flex-shrink-0 px-2 py-0.5 border border-ink/20 bg-[#fff9c4]"
+              className="flex items-center gap-1 flex-shrink-0 px-2 py-0.5 border border-ink bg-[#fff9c4]"
               style={{ borderRadius: radius.btn }}
             >
               <Flame size={12} strokeWidth={2.5} className="text-accent" />
@@ -138,7 +138,7 @@ function HabitCard({ habit, onComplete, onDelete, onProof }) {
         {/* 7-day dots */}
         {streakData && (
           <div className="mb-3">
-            <p className="font-hand text-xs text-ink/40 mb-1.5">Last 7 days</p>
+            <p className="font-hand text-xs text-ink mb-1.5">Last 7 days</p>
             <div className="flex gap-1.5">
               {weekDots.map(({ key, label, done, isToday }) => (
                 <div key={key} className="flex flex-col items-center gap-1">
@@ -156,7 +156,7 @@ function HabitCard({ habit, onComplete, onDelete, onProof }) {
                     {done ? '✓' : ''}
                   </div>
                   <span
-                    className={`font-hand text-[9px] ${isToday ? 'text-ink/60 font-bold' : 'text-ink/30'}`}
+                    className={`font-hand text-[9px] ${isToday ? 'text-ink font-bold' : 'text-ink/70'}`}
                   >
                     {label}
                   </span>
@@ -170,8 +170,8 @@ function HabitCard({ habit, onComplete, onDelete, onProof }) {
         {streakData && (
           <div className="mb-4">
             <div className="flex justify-between items-center mb-1">
-              <span className="font-hand text-xs text-ink/40">Weekly progress</span>
-              <span className="font-hand text-xs text-ink/50">{doneThisWeek}/7 days</span>
+              <span className="font-hand text-xs text-ink">Weekly progress</span>
+              <span className="font-hand text-xs text-ink">{doneThisWeek}/7 days</span>
             </div>
             <ProgressBar value={doneThisWeek} max={7} color="#4caf50" />
           </div>
@@ -182,14 +182,14 @@ function HabitCard({ habit, onComplete, onDelete, onProof }) {
           <div className="flex items-center gap-1">
             <button
               onClick={() => setInterrogating(true)}
-              className="p-1.5 text-ink/20 hover:text-accent hover:bg-[#fff0f0] rounded transition-colors"
+              className="p-1.5 text-ink/50 hover:text-accent hover:bg-[#fff0f0] rounded transition-colors"
               title="Delete habit"
             >
               <Trash2 size={15} strokeWidth={2.5} />
             </button>
             <button
               onClick={() => navigate(`/habits/${habit.id}`)}
-              className="flex items-center gap-1 px-2 py-1 font-hand text-xs text-ink/40 hover:text-pen-blue transition-colors rounded"
+              className="flex items-center gap-1 px-2 py-1 font-hand text-xs text-ink hover:text-pen-blue transition-colors rounded"
               title="View habit details"
             >
               <BarChart2 size={13} strokeWidth={2.5} />
@@ -259,11 +259,11 @@ function HabitCard({ habit, onComplete, onDelete, onProof }) {
         </div>
 
         {/* Metadata footer */}
-        <div className="flex items-center gap-2 mt-3 pt-2 border-t border-dashed border-muted/60 text-ink/30">
+        <div className="flex items-center gap-2 mt-3 pt-2 border-t border-dashed border-muted/60 text-ink">
           <span className="font-hand text-xs">Created {formatCreated(habit.created_at)}</span>
           {longestStreak > 0 && (
             <>
-              <span className="text-ink/20">·</span>
+              <span className="text-ink/50">·</span>
               <span className="font-hand text-xs">
                 Longest streak: {longestStreak} day{longestStreak !== 1 ? 's' : ''}
               </span>
@@ -362,7 +362,7 @@ export default function HabitsPage() {
             onChange={(e) => setRequiresProof(e.target.checked)}
             className="w-4 h-4 accent-[#1976d2]"
           />
-          <span className="font-hand text-sm text-ink/60 flex items-center gap-1.5">
+          <span className="font-hand text-sm text-ink flex items-center gap-1.5">
             <Camera size={13} strokeWidth={2.5} />
             Require photo proof
           </span>
@@ -373,8 +373,8 @@ export default function HabitsPage() {
       {!loading && habits.length > 0 && (
         <div className="mb-6">
           <div className="flex justify-between mb-1.5">
-            <span className="font-hand text-sm text-ink/60">Today's progress</span>
-            <span className="font-hand text-sm text-ink/60">
+            <span className="font-hand text-sm text-ink">Today's progress</span>
+            <span className="font-hand text-sm text-ink">
               {completedCount}/{habits.length} completed
             </span>
           </div>
@@ -390,9 +390,9 @@ export default function HabitsPage() {
         </div>
       ) : habits.length === 0 ? (
         <div className="text-center py-16">
-          <p className="font-marker text-5xl text-ink/10 mb-4">✦</p>
-          <p className="font-marker text-2xl text-ink/30 mb-2">no habits yet</p>
-          <p className="font-hand text-ink/40">
+          <p className="font-marker text-5xl text-ink/40 mb-4">✦</p>
+          <p className="font-marker text-2xl text-ink mb-2">no habits yet</p>
+          <p className="font-hand text-ink">
             Start building your routine — add your first habit above ↑
           </p>
         </div>

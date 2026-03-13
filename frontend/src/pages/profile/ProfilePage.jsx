@@ -67,14 +67,14 @@ export default function ProfilePage() {
               <p className="font-marker text-xl font-bold text-ink">
                 {user?.name || user?.email?.split('@')[0]}
               </p>
-              <p className="font-hand text-sm text-ink/50">
+              <p className="font-hand text-sm text-ink">
                 member since {formatDate(user?.created_at)}
               </p>
             </div>
           </div>
 
           <div className="flex flex-col gap-2 mt-2 pt-3 border-t border-dashed border-muted">
-            <div className="flex items-center gap-2 font-hand text-sm text-ink/70">
+            <div className="flex items-center gap-2 font-hand text-sm text-ink">
               <Mail size={14} strokeWidth={2.5} />
               {user?.email}
             </div>
@@ -87,7 +87,7 @@ export default function ProfilePage() {
         <h2 className="font-marker text-xl font-bold text-ink mb-4">Update name</h2>
         <form onSubmit={handleUpdate} className="flex flex-col gap-4">
           <div>
-            <label className="font-hand text-sm text-ink/70 block mb-1.5">Display name</label>
+            <label className="font-hand text-sm text-ink block mb-1.5">Display name</label>
             <Input
               type="text"
               placeholder="Your name"
@@ -107,7 +107,7 @@ export default function ProfilePage() {
         <h2 className="font-marker text-xl font-bold text-ink mb-2">
           {isDemo ? 'Reset demo data' : 'Reset all data'}
         </h2>
-        <p className="font-hand text-ink/50 mb-4">
+        <p className="font-hand text-ink mb-4">
           {isDemo
             ? 'Restore sample habits and journal entries to defaults.'
             : 'Permanently delete all your habits and journal entries. This cannot be undone.'}
@@ -115,7 +115,7 @@ export default function ProfilePage() {
 
         {confirming ? (
           <div className="flex flex-col gap-3">
-            <p className="font-hand text-sm text-ink/70">Are you sure? This cannot be undone.</p>
+            <p className="font-hand text-sm text-ink">Are you sure? This cannot be undone.</p>
             <div className="flex gap-3">
               <Button variant="danger" onClick={handleReset} disabled={resetLoading}>
                 <RotateCcw size={14} strokeWidth={2.5} />
@@ -137,7 +137,7 @@ export default function ProfilePage() {
       {/* Logout */}
       <Card>
         <h2 className="font-marker text-xl font-bold text-ink mb-2">Sign out</h2>
-        <p className="font-hand text-ink/50 mb-4">you can always come back.</p>
+        <p className="font-hand text-ink mb-4">you can always come back.</p>
         <Button variant="danger" onClick={handleLogout}>
           <LogOut size={16} strokeWidth={2.5} /> sign out
         </Button>

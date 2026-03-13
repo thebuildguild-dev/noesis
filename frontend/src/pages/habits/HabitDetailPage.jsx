@@ -59,7 +59,7 @@ function parseLocalDate(str) {
 function MonthGroupedHistory({ dates }) {
   if (!dates || dates.length === 0) {
     return (
-      <p className="font-hand text-sm text-ink/30 italic text-center py-4">
+      <p className="font-hand text-sm text-ink italic text-center py-4">
         No completions in the last 90 days
       </p>
     )
@@ -103,7 +103,7 @@ function MonthGroupedHistory({ dates }) {
     <div className="flex flex-col gap-4 max-h-72 overflow-y-auto pr-1 scrollbar-subtle">
       {months.map(({ year, month, days }) => (
         <div key={`${year}-${month}`}>
-          <p className="font-marker text-sm font-bold text-ink/50 mb-2">
+          <p className="font-marker text-sm font-bold text-ink mb-2">
             {MONTH_NAMES[month]} {year}
           </p>
           <div className="flex flex-wrap gap-1">
@@ -172,7 +172,7 @@ function WeeklyBars({ dates }) {
               />
             )}
           </div>
-          <span className="font-hand text-[8px] text-ink/30 truncate w-full text-center">
+          <span className="font-hand text-[8px] text-ink truncate w-full text-center">
             {w.label}
           </span>
         </div>
@@ -185,8 +185,8 @@ function StatCard({ icon: Icon, label, value, color = 'text-ink' }) {
   return (
     <Card className="flex flex-col gap-1">
       <div className="flex items-center gap-1.5 mb-1">
-        <Icon size={14} strokeWidth={2.5} className="text-ink/40" />
-        <span className="font-hand text-xs text-ink/40 uppercase tracking-wide">{label}</span>
+        <Icon size={14} strokeWidth={2.5} className="text-ink" />
+        <span className="font-hand text-xs text-ink uppercase tracking-wide">{label}</span>
       </div>
       <span className={`font-marker text-2xl font-bold ${color}`}>{value}</span>
     </Card>
@@ -198,9 +198,7 @@ function ProofHistorySection({ proofs }) {
 
   if (!proofs || proofs.length === 0) {
     return (
-      <p className="font-hand text-sm text-ink/30 italic text-center py-4">
-        No proof submissions yet
-      </p>
+      <p className="font-hand text-sm text-ink italic text-center py-4">No proof submissions yet</p>
     )
   }
 
@@ -245,9 +243,9 @@ function ProofHistorySection({ proofs }) {
                 </span>
               </div>
               {isExpanded ? (
-                <ChevronUp size={14} strokeWidth={2.5} className="text-ink/30" />
+                <ChevronUp size={14} strokeWidth={2.5} className="text-ink" />
               ) : (
-                <ChevronDown size={14} strokeWidth={2.5} className="text-ink/30" />
+                <ChevronDown size={14} strokeWidth={2.5} className="text-ink" />
               )}
             </button>
 
@@ -263,7 +261,7 @@ function ProofHistorySection({ proofs }) {
                 )}
                 {p.vision_description && (
                   <div className="mb-2">
-                    <p className="font-marker text-xs font-bold text-ink/40 uppercase tracking-wide mb-0.5">
+                    <p className="font-marker text-xs font-bold text-ink uppercase tracking-wide mb-0.5">
                       Image Analysis
                     </p>
                     <p className="font-hand text-xs text-ink italic">"{p.vision_description}"</p>
@@ -271,14 +269,14 @@ function ProofHistorySection({ proofs }) {
                 )}
                 {p.verification_comment && (
                   <div className="mb-2">
-                    <p className="font-marker text-xs font-bold text-ink/40 uppercase tracking-wide mb-0.5">
+                    <p className="font-marker text-xs font-bold text-ink uppercase tracking-wide mb-0.5">
                       Reasoning
                     </p>
                     <p className="font-hand text-xs text-ink">"{p.verification_comment}"</p>
                   </div>
                 )}
                 {p.verification_confidence != null && (
-                  <p className="font-hand text-xs text-ink/40">
+                  <p className="font-hand text-xs text-ink">
                     Confidence: {Math.round(p.verification_confidence * 100)}%
                   </p>
                 )}
@@ -376,21 +374,21 @@ export default function HabitDetailPage() {
         <div className="flex items-center justify-between mb-4">
           <button
             onClick={() => navigate('/habits')}
-            className="flex items-center gap-1.5 font-hand text-sm text-ink/50 hover:text-ink transition-colors"
+            className="flex items-center gap-1.5 font-hand text-sm text-ink hover:text-accent transition-colors"
           >
             <ArrowLeft size={16} strokeWidth={2.5} /> all habits
           </button>
 
           <button
             onClick={() => setInterrogating(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 font-hand text-sm text-ink/40 hover:text-accent hover:bg-[#fff0f0] border border-transparent hover:border-accent/30 rounded transition-colors"
+            className="flex items-center gap-1.5 px-3 py-1.5 font-hand text-sm text-ink hover:text-accent hover:bg-[#fff0f0] border border-transparent hover:border-accent/30 rounded transition-colors"
           >
             <Trash2 size={14} strokeWidth={2.5} /> delete habit
           </button>
         </div>
 
         <h1 className="font-marker text-3xl font-bold text-ink mb-1">{habit.title}</h1>
-        <p className="font-hand text-sm text-ink/40">
+        <p className="font-hand text-sm text-ink">
           Tracking since {formatCreated(effectiveStart)} · {daysSinceCreation} day
           {daysSinceCreation !== 1 ? 's' : ''}
         </p>
@@ -413,12 +411,12 @@ export default function HabitDetailPage() {
       <Card className="mb-6">
         <div className="flex justify-between items-center mb-2">
           <p className="font-marker text-base font-bold text-ink">Overall completion rate</p>
-          <span className="font-hand text-sm text-ink/50">
+          <span className="font-hand text-sm text-ink">
             {totalCompletions} / {daysSinceCreation} days
           </span>
         </div>
         <ProgressBar value={completionRate} max={100} color="#4caf50" />
-        <p className="font-hand text-xs text-ink/30 mt-2">
+        <p className="font-hand text-xs text-ink mt-2">
           {completionRate >= 80
             ? 'Outstanding consistency!'
             : completionRate >= 50
@@ -431,7 +429,7 @@ export default function HabitDetailPage() {
       <Card className="mb-6">
         <p className="font-marker text-base font-bold text-ink mb-4">
           Completion history
-          <span className="font-hand text-xs font-normal text-ink/40 ml-2">(last 90 days)</span>
+          <span className="font-hand text-xs font-normal text-ink ml-2">(last 90 days)</span>
         </p>
         {loading ? (
           <div className="flex justify-center py-8">

@@ -211,7 +211,7 @@ export default function DashboardPage() {
               <div className="font-marker text-4xl font-bold text-ink">
                 {completedToday}/{totalHabits}
               </div>
-              <p className="font-hand text-sm text-ink/60 mt-1">habits today</p>
+              <p className="font-hand text-sm text-ink mt-1">habits today</p>
               {totalHabits > 0 && (
                 <ProgressBar value={completedToday} max={totalHabits} className="mt-3" />
               )}
@@ -222,12 +222,12 @@ export default function DashboardPage() {
                 <Flame size={28} strokeWidth={2} className="text-accent" />
                 {bestStreak}
               </div>
-              <p className="font-hand text-sm text-ink/60 mt-1">best streak</p>
+              <p className="font-hand text-sm text-ink mt-1">best streak</p>
             </Card>
 
             <Card className="text-center col-span-2 md:col-span-1" rotate={-1}>
               <div className="font-marker text-4xl font-bold text-pen-blue">{totalEntries}</div>
-              <p className="font-hand text-sm text-ink/60 mt-1">journal entries</p>
+              <p className="font-hand text-sm text-ink mt-1">journal entries</p>
             </Card>
           </>
         )}
@@ -239,7 +239,7 @@ export default function DashboardPage() {
           <div className="flex items-center gap-2 mb-4">
             <Activity size={16} strokeWidth={2.5} className="text-pen-blue" />
             <h2 className="font-marker text-lg font-bold text-ink">Habit Activity</h2>
-            <span className="font-hand text-xs text-ink/40 ml-1">last 56 days</span>
+            <span className="font-hand text-xs text-ink ml-1">last 56 days</span>
           </div>
           <HeatmapGrid activity={activity} totalHabits={totalHabits} />
         </Card>
@@ -268,7 +268,7 @@ export default function DashboardPage() {
             </div>
           ) : habits.length === 0 ? (
             <div className="py-6 text-center">
-              <p className="font-marker text-xl text-ink/20 mb-1">no habits yet</p>
+              <p className="font-marker text-xl text-ink/50 mb-1">no habits yet</p>
               <Link to="/habits" className="font-hand text-sm text-pen-blue hover:underline">
                 Create your first habit →
               </Link>
@@ -306,7 +306,7 @@ export default function DashboardPage() {
             </div>
           ) : entries.length === 0 ? (
             <div className="py-6 text-center">
-              <p className="font-marker text-xl text-ink/20 mb-1">nothing written yet</p>
+              <p className="font-marker text-xl text-ink/50 mb-1">nothing written yet</p>
               <Link to="/journal" className="font-hand text-sm text-pen-blue hover:underline">
                 Start your first entry →
               </Link>
@@ -323,8 +323,8 @@ export default function DashboardPage() {
                   <div key={e.id} className="border-l-2 border-pen-blue pl-3 py-1">
                     <p className="font-hand text-sm text-ink line-clamp-2">{plain}</p>
                     <div className="flex items-center gap-2 mt-1">
-                      <p className="font-hand text-xs text-ink/40">{formatDate(e.created_at)}</p>
-                      <span className="font-hand text-xs text-ink/30">· {wordCount}w</span>
+                      <p className="font-hand text-xs text-ink">{formatDate(e.created_at)}</p>
+                      <span className="font-hand text-xs text-ink">· {wordCount}w</span>
                     </div>
                   </div>
                 )

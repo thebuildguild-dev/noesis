@@ -152,7 +152,7 @@ function CustomTooltip({ active, payload, label }) {
       <p className="font-bold text-ink">{formatShortDate(label)}</p>
       <p className="text-ink/70">
         Mood:{' '}
-        <span className="font-semibold capitalize" style={{ color: mood ? '#ff4d4d' : '#9ca3af' }}>
+        <span className="font-semibold capitalize" style={{ color: mood ? '#ff4d4d' : '#1F2933' }}>
           {mood ?? 'No data'}
         </span>
       </p>
@@ -207,9 +207,9 @@ export default function InsightsPage() {
       ) : entries.length === 0 ? (
         <Card>
           <div className="text-center py-16">
-            <p className="font-marker text-5xl text-ink/10 mb-4">✦</p>
-            <p className="font-marker text-2xl text-ink/30 mb-2">no mood data yet</p>
-            <p className="font-hand text-ink/40">
+            <p className="font-marker text-5xl text-ink/40 mb-4">✦</p>
+            <p className="font-marker text-2xl text-ink mb-2">no mood data yet</p>
+            <p className="font-hand text-ink">
               Write journal entries and AI will analyze your emotional trends.
             </p>
           </div>
@@ -219,7 +219,7 @@ export default function InsightsPage() {
           {/* Weekly Summary */}
           {weeklySummary && (
             <Card decoration="tape" yellow>
-              <p className="font-hand text-xs text-ink/40 uppercase tracking-wide mb-2">
+              <p className="font-hand text-xs text-ink uppercase tracking-wide mb-2">
                 Weekly Summary
               </p>
               <p className="font-hand text-base text-ink leading-relaxed">{weeklySummary}</p>
@@ -231,7 +231,7 @@ export default function InsightsPage() {
             <div className="flex items-center gap-2 mb-4">
               <Brain size={16} strokeWidth={2.5} className="text-pen-blue" />
               <h2 className="font-marker text-lg font-bold text-ink">Mood Trend</h2>
-              <span className="font-hand text-xs text-ink/40 ml-1">last 14 days</span>
+              <span className="font-hand text-xs text-ink ml-1">last 14 days</span>
             </div>
             <div className="h-48">
               <ResponsiveContainer width="100%" height="100%">
@@ -243,14 +243,14 @@ export default function InsightsPage() {
                       const d = new Date(v + 'T00:00:00')
                       return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
                     }}
-                    tick={{ fontFamily: 'inherit', fontSize: 11, fill: '#6b7280' }}
+                    tick={{ fontFamily: 'inherit', fontSize: 11, fill: '#1F2933' }}
                     interval={3}
                   />
                   <YAxis
                     domain={[0, 6]}
                     ticks={[1, 3, 5]}
                     tickFormatter={(v) => (v === 1 ? 'Low' : v === 3 ? 'Mid' : 'High')}
-                    tick={{ fontFamily: 'inherit', fontSize: 11, fill: '#6b7280' }}
+                    tick={{ fontFamily: 'inherit', fontSize: 11, fill: '#1F2933' }}
                   />
                   <Tooltip content={<CustomTooltip />} />
                   <Line
@@ -295,7 +295,7 @@ export default function InsightsPage() {
                     ].join(' ')}
                     style={{ backgroundColor: entry ? color : '#f3f4f6' }}
                   >
-                    <span className="font-hand text-xs font-bold text-ink/70">{dayNum}</span>
+                    <span className="font-hand text-xs font-bold text-ink">{dayNum}</span>
                   </button>
                 )
               })}
@@ -314,7 +314,7 @@ export default function InsightsPage() {
                     className="w-3 h-3 rounded-sm border border-ink/20"
                     style={{ backgroundColor: color }}
                   />
-                  <span className="font-hand text-xs text-ink/50">{label}</span>
+                  <span className="font-hand text-xs text-ink">{label}</span>
                 </div>
               ))}
             </div>
@@ -327,7 +327,7 @@ export default function InsightsPage() {
                 </p>
                 {selectedEntry ? (
                   <>
-                    <p className="font-hand text-sm text-ink/70 mb-2">
+                    <p className="font-hand text-sm text-ink mb-2">
                       Mood:{' '}
                       <span
                         className="font-bold"
@@ -341,7 +341,7 @@ export default function InsightsPage() {
                         {selectedEntry.themes.map((t) => (
                           <span
                             key={t}
-                            className="font-hand text-xs px-2 py-0.5 border border-ink/30 rounded-full text-ink/70"
+                            className="font-hand text-xs px-2 py-0.5 border border-ink rounded-full text-ink"
                           >
                             {t}
                           </span>
@@ -350,7 +350,7 @@ export default function InsightsPage() {
                     )}
                   </>
                 ) : (
-                  <p className="font-hand text-sm text-ink/40">No journal entry on this day.</p>
+                  <p className="font-hand text-sm text-ink">No journal entry on this day.</p>
                 )}
               </div>
             )}
@@ -375,7 +375,7 @@ export default function InsightsPage() {
                           style={{ width: `${pct}%` }}
                         />
                       </div>
-                      <span className="font-hand text-xs text-ink/40 w-6 text-right">{count}</span>
+                      <span className="font-hand text-xs text-ink w-6 text-right">{count}</span>
                     </div>
                   )
                 })}

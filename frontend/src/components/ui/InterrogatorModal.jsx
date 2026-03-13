@@ -69,21 +69,21 @@ export default function InterrogatorModal({ entityType, entityName, onConfirm, o
         style={{ borderRadius: radius.wobblyCard }}
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-5 pt-5 pb-4 border-b-2 border-dashed border-ink/20">
+        <div className="flex items-center justify-between px-5 pt-5 pb-4 border-b-2 border-dashed border-ink">
           <div className="flex items-center gap-2">
             <AlertTriangle size={16} strokeWidth={2.5} className="text-accent flex-shrink-0" />
             <div>
               <p className="font-marker text-xs font-bold text-accent uppercase tracking-widest">
                 Interrogation
               </p>
-              <p className="font-hand text-xs text-ink/40 truncate max-w-[240px]">
+              <p className="font-hand text-xs text-ink truncate max-w-[240px]">
                 {entityType}: &ldquo;{entityName}&rdquo;
               </p>
             </div>
           </div>
           <button
             onClick={onCancel}
-            className="p-1.5 text-ink/30 hover:text-ink transition-colors rounded"
+            className="p-1.5 text-ink hover:text-accent transition-colors rounded"
           >
             <X size={16} strokeWidth={2.5} />
           </button>
@@ -94,11 +94,11 @@ export default function InterrogatorModal({ entityType, entityName, onConfirm, o
           <div className="mb-5 min-h-[52px]">
             {loadingQuestion ? (
               <div className="flex items-center gap-2">
-                <div className="w-3.5 h-3.5 border-2 border-ink/20 border-t-ink rounded-full animate-spin flex-shrink-0" />
-                <span className="font-hand text-sm text-ink/50">Generating question…</span>
+                <div className="w-3.5 h-3.5 border-2 border-ink/30 border-t-ink rounded-full animate-spin flex-shrink-0" />
+                <span className="font-hand text-sm text-ink">Generating question…</span>
               </div>
             ) : fetchError ? (
-              <p className="font-hand text-sm text-ink/50 italic">{fetchError}</p>
+              <p className="font-hand text-sm text-ink italic">{fetchError}</p>
             ) : (
               <p className="font-hand text-base text-ink leading-relaxed">
                 &ldquo;{question}&rdquo;
@@ -116,7 +116,7 @@ export default function InterrogatorModal({ entityType, entityName, onConfirm, o
               }}
               placeholder="Justify yourself…"
               rows={4}
-              className="w-full px-3 py-2.5 font-hand text-sm text-ink bg-paper border-2 border-ink/20 focus:border-ink/50 outline-none resize-none transition-colors"
+              className="w-full px-3 py-2.5 font-hand text-sm text-ink bg-paper border-2 border-ink focus:border-accent outline-none resize-none transition-colors"
               style={{ borderRadius: radius.input }}
             />
 
@@ -125,7 +125,7 @@ export default function InterrogatorModal({ entityType, entityName, onConfirm, o
               <span
                 className={`font-hand text-xs transition-colors ${
                   wordCount === 0
-                    ? 'text-ink/30'
+                    ? 'text-ink'
                     : canSubmit
                       ? 'text-[#4caf50] font-bold'
                       : 'text-accent'
@@ -134,7 +134,7 @@ export default function InterrogatorModal({ entityType, entityName, onConfirm, o
                 {wordCount} / 10 words {canSubmit ? '✓' : 'required'}
               </span>
               {!canSubmit && wordCount > 0 && (
-                <span className="font-hand text-xs text-ink/30">{10 - wordCount} more to go</span>
+                <span className="font-hand text-xs text-ink">{10 - wordCount} more to go</span>
               )}
             </div>
           </div>
@@ -142,7 +142,7 @@ export default function InterrogatorModal({ entityType, entityName, onConfirm, o
           {/* AI Feedback */}
           {feedback && (
             <div
-              className="mb-4 px-3 py-2.5 bg-[#fff9c4] border-2 border-ink/20"
+              className="mb-4 px-3 py-2.5 bg-[#fff9c4] border-2 border-ink"
               style={{ borderRadius: radius.wobblyCard }}
             >
               <p className="font-hand text-sm text-ink">{feedback}</p>
@@ -153,7 +153,7 @@ export default function InterrogatorModal({ entityType, entityName, onConfirm, o
           <div className="flex items-center gap-2 mt-2">
             <button
               onClick={onCancel}
-              className="flex-1 px-3 py-2 font-hand text-sm text-ink/60 border-2 border-muted hover:text-ink hover:border-ink/40 transition-colors"
+              className="flex-1 px-3 py-2 font-hand text-sm text-ink border-2 border-muted hover:border-ink transition-colors"
               style={{ borderRadius: radius.btn }}
             >
               cancel
