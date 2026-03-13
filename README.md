@@ -269,9 +269,6 @@ RATE_LIMIT_MAX=100
 # AI — required for all Shock features
 GEMINI_API_KEY=your_gemini_api_key
 GEMINI_GENERATION_MODEL=gemini-2.0-flash
-HF_API_KEY=your_hf_api_key
-HF_MODEL=your_hf_model
-HF_SENTIMENT_MODEL=your_hf_sentiment_model
 
 # Email (Resend)
 RESEND_API_KEY=your_resend_api_key
