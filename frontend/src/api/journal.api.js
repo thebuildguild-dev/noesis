@@ -20,9 +20,16 @@ export const updateJournalEntry = (id, body) =>
 export const deleteJournalEntry = (id) => authFetch(`/api/journal/${id}`, { method: 'DELETE' })
 
 /**
- * Fetch journal entries created on a specific date.
- * @param {string} date YYYY-MM-DD
+ * Fetch journal entries created on a specific local date.
+ * Sends local-midnight boundaries as UTC ISO strings so the backend can use
+ * a timestamp range instead of DATE() in UTC, which would miss entries
+ * written before midnight UTC (e.g. users in UTC+ timezones).
+ * @param {string} date YYYY-MM-DD (local date)
  */
-export const getJournalForDate = (date) => authFetch(`/api/journal/day?date=${date}`)
+export const getJournalForDate = (date) => {
+  const from = new Date(date + 'T00:00:00').toISOString()
+  const to = new Date(date + 'T23:59:59.999').toISOString()
+  return authFetch(`/api/journal/day?from=${from}&to=${to}`)
+}
 
 export const getJournalInsights = () => authFetch('/api/journal/insights')

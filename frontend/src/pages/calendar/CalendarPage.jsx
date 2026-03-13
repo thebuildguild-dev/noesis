@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
+import { useNavigate } from 'react-router-dom'
 import {
   ChevronLeft,
   ChevronRight,
@@ -37,18 +38,18 @@ function toDateStr(year, month, day) {
   return `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`
 }
 
-function intensityClass(count, totalHabits) {
-  if (!count || count === 0) return ''
+function cellBg(count, totalHabits, hasJournal) {
+  if (!count && !hasJournal) return ''
+  if (!count && hasJournal) return 'bg-pen-blue/30'
   const max = Math.max(1, totalHabits)
   const ratio = count / max
-  if (ratio < 0.34) return 'bg-pen-blue/20'
-  if (ratio < 0.67) return 'bg-pen-blue/45'
-  return 'bg-pen-blue/75'
+  if (ratio < 0.34) return 'bg-[#4caf50]/25'
+  if (ratio < 0.67) return 'bg-[#4caf50]/55'
+  return 'bg-[#4caf50]/85'
 }
 
 function formatDayHeader(dateStr) {
   return new Date(dateStr + 'T00:00:00').toLocaleDateString('en-US', {
-    weekday: 'long',
     month: 'long',
     day: 'numeric',
     year: 'numeric'
@@ -63,29 +64,53 @@ function formatEntryTime(ts) {
   })
 }
 
-function wordCount(text) {
-  return text.trim().split(/\s+/).filter(Boolean).length
+function stripHtml(html) {
+  return html
+    .replace(/<[^>]*>/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+function previewText(content, max = 120) {
+  const text = /<[a-z][\s\S]*>/i.test(content) ? stripHtml(content) : content
+  return text.length > max ? text.slice(0, max) + '...' : text
+}
+
+function localDateStr(d) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 
 export default function CalendarPage() {
+  const navigate = useNavigate()
   const { habits } = useHabitsStore()
   const totalHabits = habits.length
 
   const today = new Date()
-  const todayStr = today.toISOString().slice(0, 10)
+  const todayStr = localDateStr(today)
   const [viewYear, setViewYear] = useState(today.getFullYear())
-  const [viewMonth, setViewMonth] = useState(today.getMonth()) // 0-indexed
+  const [viewMonth, setViewMonth] = useState(today.getMonth())
 
-  const [activityMap, setActivityMap] = useState({}) // date → count
+  const [activityMap, setActivityMap] = useState({})
+  const [allJournalDates, setAllJournalDates] = useState(new Set())
   const [loadingActivity, setLoadingActivity] = useState(false)
 
   const isInitialMount = useRef(true)
   const [selectedDate, setSelectedDate] = useState(todayStr)
-  const [dayHabits, setDayHabits] = useState([]) // { id, title, completed_on_date }
-  const [dayJournal, setDayJournal] = useState([]) // journal entries
+  const [dayHabits, setDayHabits] = useState([])
+  const [dayJournal, setDayJournal] = useState([])
   const [loadingDay, setLoadingDay] = useState(false)
 
-  // Fetch activity for current month view
+  // Fetch journal entry dates once on mount — use local dates for coloring
+  useEffect(() => {
+    journalApi
+      .getJournalEntries({ page: 1, limit: 100 })
+      .then(({ data }) => {
+        const dates = new Set(data.entries.map((e) => localDateStr(new Date(e.created_at))))
+        setAllJournalDates(dates)
+      })
+      .catch(() => {})
+  }, [])
+
   const fetchMonthActivity = useCallback(async (year, month) => {
     setLoadingActivity(true)
     try {
@@ -113,7 +138,6 @@ export default function CalendarPage() {
   }, [viewYear, viewMonth, fetchMonthActivity])
 
   const handleDayClick = useCallback(async (dateStr) => {
-    // Future dates with no activity: don't bother fetching
     setSelectedDate(dateStr)
     setDayHabits([])
     setDayJournal([])
@@ -132,7 +156,6 @@ export default function CalendarPage() {
     }
   }, [])
 
-  // Auto-load today's details on initial mount
   useEffect(() => {
     handleDayClick(todayStr)
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
@@ -150,8 +173,7 @@ export default function CalendarPage() {
     } else setViewMonth((m) => m + 1)
   }
 
-  // Build calendar grid
-  const firstDayOfWeek = new Date(viewYear, viewMonth, 1).getDay() // 0=Sun
+  const firstDayOfWeek = new Date(viewYear, viewMonth, 1).getDay()
   const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate()
 
   const cells = [
@@ -161,12 +183,11 @@ export default function CalendarPage() {
 
   return (
     <AppLayout>
-      <PageHeader title="History" subtitle="browse your daily activity" />
+      <PageHeader title="History" subtitle="Browse your daily activity" />
 
       <div className="grid lg:grid-cols-[1fr_320px] gap-6">
         {/* Calendar */}
         <Card>
-          {/* Month navigation */}
           <div className="flex items-center justify-between mb-5">
             <button
               onClick={prevMonth}
@@ -203,7 +224,6 @@ export default function CalendarPage() {
             </button>
           </div>
 
-          {/* Day-of-week header */}
           <div className="grid grid-cols-7 mb-2">
             {DAY_LABELS.map((d) => (
               <div key={d} className="text-center font-hand text-xs text-ink/40 py-1">
@@ -212,16 +232,17 @@ export default function CalendarPage() {
             ))}
           </div>
 
-          {/* Day cells */}
           <div className="grid grid-cols-7 gap-1">
             {cells.map((day, i) => {
               if (!day) return <div key={`pad-${i}`} />
               const dateStr = toDateStr(viewYear, viewMonth, day)
               const count = activityMap[dateStr] ?? 0
+              const hasJournal = allJournalDates.has(dateStr)
               const isToday = dateStr === todayStr
               const isSelected = dateStr === selectedDate
               const isFuture = dateStr > todayStr
-              const bg = isFuture ? '' : intensityClass(count, totalHabits)
+              const bg = isFuture ? '' : cellBg(count, totalHabits, hasJournal)
+              const hasActivity = count > 0 || hasJournal
 
               return (
                 <button
@@ -248,15 +269,20 @@ export default function CalendarPage() {
                         ? 'text-accent'
                         : isToday
                           ? 'text-ink font-bold'
-                          : count > 0
+                          : hasActivity
                             ? 'text-ink'
                             : 'text-ink/40'
                     ].join(' ')}
                   >
                     {day}
                   </span>
-                  {count > 0 && !isFuture && (
-                    <span className="font-hand text-[9px] text-ink/50 leading-none">{count}✓</span>
+                  {!isFuture && (count > 0 || hasJournal) && (
+                    <span className="flex items-center gap-0.5 leading-none mt-0.5">
+                      {count > 0 && (
+                        <span className="font-hand text-[9px] text-[#4caf50]">{count}✓</span>
+                      )}
+                      {hasJournal && <span className="font-hand text-[9px] text-pen-blue">✎</span>}
+                    </span>
                   )}
                   {isToday && (
                     <span className="absolute top-0.5 right-1 font-hand text-[8px] text-ink/50">
@@ -268,14 +294,14 @@ export default function CalendarPage() {
             })}
           </div>
 
-          {/* Legend */}
-          <div className="flex items-center gap-2 mt-4 pt-3 border-t border-dashed border-muted">
+          <div className="flex items-center gap-3 mt-4 pt-3 border-t border-dashed border-muted">
             <div className="flex items-center gap-1.5">
-              {['bg-muted/40', 'bg-pen-blue/20', 'bg-pen-blue/45', 'bg-pen-blue/75'].map((c, i) => (
-                <div key={i} className={`w-4 h-4 rounded-sm border border-ink/10 ${c}`} />
-              ))}
+              <div className="w-4 h-4 rounded-sm border border-ink/10 bg-muted/40" />
+              <div className="w-4 h-4 rounded-sm border border-ink/10 bg-pen-blue/30" />
+              <div className="w-4 h-4 rounded-sm border border-ink/10 bg-[#4caf50]/25" />
+              <div className="w-4 h-4 rounded-sm border border-ink/10 bg-[#4caf50]/85" />
             </div>
-            <span className="font-hand text-xs text-ink/30">fewer → more habits completed</span>
+            <span className="font-hand text-xs text-ink/30">none · journal · partial · full</span>
           </div>
         </Card>
 
@@ -351,19 +377,21 @@ export default function CalendarPage() {
                     ) : (
                       <div className="flex flex-col gap-3">
                         {dayJournal.map((e) => (
-                          <div key={e.id} className="border-l-2 border-pen-blue pl-3">
-                            <p className="font-hand text-sm text-ink leading-relaxed line-clamp-4">
-                              {e.content}
+                          <button
+                            key={e.id}
+                            onClick={() => navigate(`/journal/${e.id}`, { state: { entry: e } })}
+                            className="w-full text-left border-l-2 border-pen-blue pl-3 hover:bg-muted/30 rounded-r transition-colors"
+                          >
+                            <p className="font-hand text-sm text-ink leading-relaxed">
+                              {previewText(e.content)}
                             </p>
-                            <div className="flex items-center gap-2 mt-1">
+                            <div className="flex items-center justify-between mt-1.5">
                               <span className="font-hand text-xs text-ink/30">
                                 {formatEntryTime(e.created_at)}
                               </span>
-                              <span className="font-hand text-xs text-ink/25">
-                                · {wordCount(e.content)}w
-                              </span>
+                              <span className="font-hand text-xs text-pen-blue">View Entry →</span>
                             </div>
-                          </div>
+                          </button>
                         ))}
                       </div>
                     )}

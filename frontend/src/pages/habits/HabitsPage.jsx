@@ -1,14 +1,6 @@
 import { useEffect, useState } from 'react'
-import {
-  Plus,
-  Trash2,
-  Flame,
-  CheckCircle2,
-  Circle,
-  History,
-  ChevronDown,
-  ChevronUp
-} from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
+import { Plus, Trash2, Flame, CheckCircle2, Circle, BarChart2 } from 'lucide-react'
 import { useHabitsStore } from '../../store/habits.store.js'
 import { useAlertStore } from '../../store/alert.store.js'
 import { useApi } from '../../hooks/useApi.js'
@@ -19,8 +11,6 @@ import { Button } from '../../components/ui/Button.jsx'
 import { Input } from '../../components/ui/Input.jsx'
 import { ProgressBar } from '../../components/ui/ProgressBar.jsx'
 import { SkeletonCard, SkeletonLine } from '../../components/ui/SkeletonCard.jsx'
-import { Spinner } from '../../components/ui/Spinner.jsx'
-import * as habitsApi from '../../api/habits.api.js'
 import { radius } from '../../utils/styles.js'
 
 const MONTH_NAMES = [
@@ -43,9 +33,6 @@ function formatCreated(ts) {
   return `${MONTH_NAMES[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`
 }
 
-/**
- * Returns the last 7 days (oldest → newest) with done flags from recentDates.
- */
 function getWeekDots(recentDates = []) {
   const dateSet = new Set(recentDates)
   const today = new Date()
@@ -62,91 +49,10 @@ function getWeekDots(recentDates = []) {
   })
 }
 
-/**
- * Groups completion dates into months and shows a compact grid for each.
- */
-function MonthGroupedHistory({ dates, createdAt }) {
-  if (!dates || dates.length === 0) {
-    return (
-      <p className="font-hand text-sm text-ink/30 italic text-center py-4">
-        No completions in the last 90 days
-      </p>
-    )
-  }
-
-  const dateSet = new Set(dates)
-  const createdDateStr = createdAt ? createdAt.slice(0, 10) : null
-  const today = new Date()
-  const windowStart = new Date(today)
-  windowStart.setDate(today.getDate() - 89)
-
-  // Collect unique month-year pairs in the 90-day window (newest first)
-  const seenMonths = new Set()
-  const rawMonths = []
-  for (let i = 0; i < 90; i++) {
-    const d = new Date(today)
-    d.setDate(today.getDate() - i)
-    const key = `${d.getFullYear()}-${d.getMonth()}`
-    if (!seenMonths.has(key)) {
-      seenMonths.add(key)
-      rawMonths.push({ year: d.getFullYear(), month: d.getMonth() })
-    }
-  }
-
-  // Pre-build valid days per month, skipping months entirely before habit creation
-  const months = rawMonths
-    .map(({ year, month }) => {
-      const daysInMonth = new Date(year, month + 1, 0).getDate()
-      const monthStart = new Date(year, month, 1)
-      const monthEnd = new Date(year, month, daysInMonth)
-      const startDay = monthStart < windowStart ? windowStart.getDate() : 1
-      const endDay = monthEnd > today ? today.getDate() : daysInMonth
-
-      const days = []
-      for (let day = startDay; day <= endDay; day++) {
-        const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`
-        if (!createdDateStr || dateStr >= createdDateStr) {
-          days.push({ day, dateStr, done: dateSet.has(dateStr) })
-        }
-      }
-      return { year, month, days }
-    })
-    .filter(({ days }) => days.length > 0)
-
-  return (
-    <div className="flex flex-col gap-4 max-h-72 overflow-y-auto pr-1">
-      {months.map(({ year, month, days }) => (
-        <div key={`${year}-${month}`}>
-          <p className="font-marker text-sm font-bold text-ink/50 mb-2">
-            {MONTH_NAMES[month]} {year}
-          </p>
-          <div className="flex flex-wrap gap-1">
-            {days.map(({ day, dateStr, done }) => (
-              <div
-                key={dateStr}
-                title={`${MONTH_NAMES[month]} ${day}: ${done ? 'completed' : 'not completed'}`}
-                className={`w-6 h-6 flex items-center justify-center text-xs border transition-colors ${
-                  done ? 'bg-[#4caf50] border-[#4caf50] text-white' : 'border-ink/20 text-ink/30'
-                }`}
-                style={{ borderRadius: '50%' }}
-              >
-                <span className="text-[9px]">{done ? '✓' : day}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      ))}
-    </div>
-  )
-}
-
 function HabitCard({ habit, onComplete, onDelete }) {
+  const navigate = useNavigate()
   const [confirming, setConfirming] = useState(false)
   const [justCompleted, setJustCompleted] = useState(false)
-  const [showTimeline, setShowTimeline] = useState(false)
-  const [timelineLogs, setTimelineLogs] = useState(null)
-  const [timelineCreatedAt, setTimelineCreatedAt] = useState(null)
-  const [loadingLogs, setLoadingLogs] = useState(false)
   const { loading: completing, call: callComplete } = useApi()
   const { loading: deleting, call: callDelete } = useApi()
   const { showSuccess, showError } = useAlertStore()
@@ -164,7 +70,6 @@ function HabitCard({ habit, onComplete, onDelete }) {
       await callComplete(onComplete, habit.id)
       setJustCompleted(true)
       setTimeout(() => setJustCompleted(false), 2500)
-      // Show streak-aware toast after optimistic update
       const updated = getStreakFor(habit.id)
       const newStreak = updated?.currentStreak ?? 0
       if (newStreak > 0) {
@@ -189,22 +94,6 @@ function HabitCard({ habit, onComplete, onDelete }) {
     }
   }
 
-  const handleToggleTimeline = async () => {
-    if (!showTimeline && timelineLogs === null) {
-      setLoadingLogs(true)
-      try {
-        const { data } = await habitsApi.getHabitLogs(habit.id)
-        setTimelineLogs(data.dates)
-        setTimelineCreatedAt(data.createdAt)
-      } catch {
-        setTimelineLogs([])
-      } finally {
-        setLoadingLogs(false)
-      }
-    }
-    setShowTimeline((v) => !v)
-  }
-
   return (
     <Card
       className={`transition-all duration-300 ${justCompleted ? 'ring-2 ring-[#4caf50]/50' : ''}`}
@@ -227,7 +116,7 @@ function HabitCard({ habit, onComplete, onDelete }) {
         )}
       </div>
 
-      {/* 7-day dots row — shown after streak data loads */}
+      {/* 7-day dots */}
       {streakData && (
         <div className="mb-3">
           <p className="font-hand text-xs text-ink/40 mb-1.5">Last 7 days</p>
@@ -258,7 +147,7 @@ function HabitCard({ habit, onComplete, onDelete }) {
         </div>
       )}
 
-      {/* Progress bar */}
+      {/* Weekly progress bar */}
       {streakData && (
         <div className="mb-4">
           <div className="flex justify-between items-center mb-1">
@@ -304,16 +193,12 @@ function HabitCard({ habit, onComplete, onDelete }) {
                 <Trash2 size={15} strokeWidth={2.5} />
               </button>
               <button
-                onClick={handleToggleTimeline}
+                onClick={() => navigate(`/habits/${habit.id}`)}
                 className="flex items-center gap-1 px-2 py-1 font-hand text-xs text-ink/40 hover:text-pen-blue transition-colors rounded"
-                title="View completion history"
+                title="View habit details"
               >
-                <History size={13} strokeWidth={2.5} />
-                {showTimeline ? (
-                  <ChevronUp size={11} strokeWidth={3} />
-                ) : (
-                  <ChevronDown size={11} strokeWidth={3} />
-                )}
+                <BarChart2 size={13} strokeWidth={2.5} />
+                <span>Details</span>
               </button>
             </>
           )}
@@ -351,22 +236,6 @@ function HabitCard({ habit, onComplete, onDelete }) {
           )}
         </button>
       </div>
-
-      {/* Timeline panel */}
-      {showTimeline && (
-        <div className="mt-4 pt-3 border-t border-dashed border-muted">
-          <p className="font-marker text-sm font-bold text-ink/40 mb-3">
-            Completion history (last 90 days)
-          </p>
-          {loadingLogs ? (
-            <div className="flex justify-center py-4">
-              <Spinner size="sm" />
-            </div>
-          ) : (
-            <MonthGroupedHistory dates={timelineLogs ?? []} createdAt={timelineCreatedAt} />
-          )}
-        </div>
-      )}
 
       {/* Metadata footer */}
       <div className="flex items-center gap-2 mt-3 pt-2 border-t border-dashed border-muted/60 text-ink/30">
@@ -439,7 +308,6 @@ export default function HabitsPage() {
         {error && <p className="font-hand text-sm text-accent mt-2">{error}</p>}
       </Card>
 
-      {/* Overall daily progress bar */}
       {!loading && habits.length > 0 && (
         <div className="mb-6">
           <div className="flex justify-between mb-1.5">

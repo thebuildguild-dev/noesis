@@ -9,7 +9,7 @@ const navItems = [
   { to: '/habits', label: 'Habits', icon: Flame },
   { to: '/journal', label: 'Journal', icon: BookOpen },
   { to: '/insights', label: 'Mood Insights', icon: Brain },
-  { to: '/calendar', label: 'History', icon: CalendarDays },
+  { to: '/history', label: 'History', icon: CalendarDays },
   { to: '/profile', label: 'Profile', icon: User }
 ]
 

@@ -5,7 +5,10 @@ import LoginPage from './pages/login/LoginPage.jsx'
 import RegisterPage from './pages/register/RegisterPage.jsx'
 import DashboardPage from './pages/dashboard/DashboardPage.jsx'
 import HabitsPage from './pages/habits/HabitsPage.jsx'
+import HabitDetailPage from './pages/habits/HabitDetailPage.jsx'
 import JournalPage from './pages/journal/JournalPage.jsx'
+import JournalEditorPage from './pages/journal/JournalEditorPage.jsx'
+import JournalViewPage from './pages/journal/JournalViewPage.jsx'
 import ProfilePage from './pages/profile/ProfilePage.jsx'
 import CalendarPage from './pages/calendar/CalendarPage.jsx'
 import ResetPasswordPage from './pages/reset-password/ResetPasswordPage.jsx'
@@ -66,10 +69,34 @@ export function AppRouter() {
         }
       />
       <Route
+        path="/habits/:id"
+        element={
+          <ProtectedRoute>
+            <HabitDetailPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
         path="/journal"
         element={
           <ProtectedRoute>
             <JournalPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/journal/editor"
+        element={
+          <ProtectedRoute>
+            <JournalEditorPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/journal/:id"
+        element={
+          <ProtectedRoute>
+            <JournalViewPage />
           </ProtectedRoute>
         }
       />
@@ -82,7 +109,7 @@ export function AppRouter() {
         }
       />
       <Route
-        path="/calendar"
+        path="/history"
         element={
           <ProtectedRoute>
             <CalendarPage />

@@ -63,14 +63,14 @@ async function deleteEntry(req, res, next) {
   }
 }
 
-/** Get journal entries created on a specific date (?date=YYYY-MM-DD). */
+/** Get journal entries created within a local-day timestamp range (?from=ISO&to=ISO). */
 async function getEntriesForDate(req, res, next) {
   try {
-    const { date } = req.query
-    if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
-      return error(res, 'date query param is required (YYYY-MM-DD)')
+    const { from, to } = req.query
+    if (!from || !to) {
+      return error(res, 'from and to query params are required (ISO timestamps)')
     }
-    const entries = await journalService.getEntriesForDate(req.user.id, date)
+    const entries = await journalService.getEntriesForDate(req.user.id, from, to)
     return success(res, { entries }, 'Journal entries for date fetched')
   } catch (err) {
     next(err)

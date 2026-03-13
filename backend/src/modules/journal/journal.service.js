@@ -132,14 +132,15 @@ async function deleteEntry(userId, entryId) {
   await cacheDelete(CacheKeys.journalList(userId))
 }
 
-async function getEntriesForDate(userId, date) {
+async function getEntriesForDate(userId, from, to) {
   const { rows } = await query(
     `SELECT id, content, sentiment, themes, created_at, updated_at
      FROM journal_entries
      WHERE user_id = $1
-       AND DATE(created_at) = $2
+       AND created_at >= $2
+       AND created_at <= $3
      ORDER BY created_at DESC`,
-    [userId, date]
+    [userId, from, to]
   )
   return rows
 }
