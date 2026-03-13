@@ -31,3 +31,6 @@ postgres-data/
 # Temporary files
 *.tmp
 *.temp
+
+# Uploads
+uploads/

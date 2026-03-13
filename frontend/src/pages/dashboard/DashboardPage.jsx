@@ -7,7 +7,9 @@ import {
   BookOpen,
   ArrowRight,
   Lightbulb,
-  Activity
+  Activity,
+  Camera,
+  ShieldCheck
 } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth.js'
 import { useHabitsStore } from '../../store/habits.store.js'
@@ -22,6 +24,7 @@ import { Spinner } from '../../components/ui/Spinner.jsx'
 import { ProgressBar } from '../../components/ui/ProgressBar.jsx'
 import { SkeletonCard } from '../../components/ui/SkeletonCard.jsx'
 import { HeatmapGrid } from '../../components/ui/HeatmapGrid.jsx'
+import ProofUploadModal from '../../components/ui/ProofUploadModal.jsx'
 import { radius } from '../../utils/styles.js'
 
 function greeting(name) {
@@ -63,12 +66,16 @@ function getDailyInsight({ completedToday, totalHabits, allStreaks, entriesCount
   return 'Every day you show up, you build a better version of yourself.'
 }
 
-function HabitRow({ habit, onComplete }) {
+function HabitRow({ habit, onComplete, onProof }) {
   const [justCompleted, setJustCompleted] = useState(false)
   const { loading: completing, call: callComplete } = useApi()
   const { showError } = useAlertStore()
 
   const handleComplete = async () => {
+    if (habit.requires_proof) {
+      onProof(habit)
+      return
+    }
     try {
       await callComplete(onComplete, habit.id)
       if (!habit.completed_today) {
@@ -85,18 +92,28 @@ function HabitRow({ habit, onComplete }) {
       className={`flex items-center gap-3 py-2.5 transition-all duration-300 ${justCompleted ? 'bg-[#f0fff4] -mx-2 px-2 rounded-lg' : ''}`}
     >
       <button
-        onClick={handleComplete}
+        onClick={habit.completed_today ? undefined : handleComplete}
         disabled={habit.completed_today || completing}
         className="flex-shrink-0 disabled:cursor-default"
       >
         {habit.completed_today ? (
-          <CheckCircle2
-            size={20}
-            strokeWidth={2.5}
-            className={`transition-transform duration-300 ${justCompleted ? 'scale-125 text-[#4caf50]' : 'text-[#4caf50]'}`}
-          />
+          habit.requires_proof ? (
+            <ShieldCheck size={20} strokeWidth={2.5} className="text-pen-blue" />
+          ) : (
+            <CheckCircle2
+              size={20}
+              strokeWidth={2.5}
+              className={`transition-transform duration-300 ${justCompleted ? 'scale-125 text-[#4caf50]' : 'text-[#4caf50]'}`}
+            />
+          )
         ) : completing ? (
           <Spinner size="sm" />
+        ) : habit.requires_proof ? (
+          <Camera
+            size={20}
+            strokeWidth={2.5}
+            className="text-pen-blue/60 hover:text-pen-blue transition-colors"
+          />
         ) : (
           <Circle
             size={20}
@@ -114,8 +131,8 @@ function HabitRow({ habit, onComplete }) {
         <span className="font-hand text-xs text-[#4caf50] animate-pulse">✓ done!</span>
       )}
       {habit.completed_today && !justCompleted && (
-        <Badge color="green" className="text-xs">
-          done
+        <Badge color={habit.requires_proof ? 'blue' : 'green'} className="text-xs">
+          {habit.requires_proof ? 'verified' : 'done'}
         </Badge>
       )}
     </div>
@@ -132,9 +149,12 @@ export default function DashboardPage() {
     fetchHabits,
     fetchAllStreaks,
     fetchActivity,
-    completeHabit
+    completeHabit,
+    markProofApproved
   } = useHabitsStore()
   const { entries, pagination, loading: jLoading, fetchEntries } = useJournalStore()
+  const { showSuccess } = useAlertStore()
+  const [proofHabit, setProofHabit] = useState(null)
 
   useEffect(() => {
     fetchHabits()
@@ -256,7 +276,7 @@ export default function DashboardPage() {
           ) : (
             <div className="divide-y divide-dashed divide-muted">
               {habits.slice(0, 6).map((h) => (
-                <HabitRow key={h.id} habit={h} onComplete={completeHabit} />
+                <HabitRow key={h.id} habit={h} onComplete={completeHabit} onProof={setProofHabit} />
               ))}
             </div>
           )}
@@ -309,6 +329,18 @@ export default function DashboardPage() {
           )}
         </Card>
       </div>
+      {proofHabit && (
+        <ProofUploadModal
+          habitId={proofHabit.id}
+          habitTitle={proofHabit.title}
+          onClose={() => setProofHabit(null)}
+          onApproved={() => {
+            markProofApproved(proofHabit.id)
+            showSuccess(`✓ ${proofHabit.title} — proof verified!`)
+            setProofHabit(null)
+          }}
+        />
+      )}
     </AppLayout>
   )
 }
