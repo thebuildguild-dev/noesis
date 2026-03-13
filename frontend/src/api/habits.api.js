@@ -1,4 +1,4 @@
-import { authFetch } from './client.js'
+import { authFetch, authUploadFetch } from './client.js'
 
 /** @param {{ title: string }} body */
 export const createHabit = (body) =>
@@ -38,3 +38,20 @@ export const getHabitsForDate = (date) => authFetch(`/api/habits/day?date=${date
  * @param {string} id
  */
 export const getHabitLogs = (id) => authFetch(`/api/habits/${id}/logs`)
+
+/**
+ * Upload a proof image for a habit. Uses multipart form upload.
+ * @param {string} id
+ * @param {File} file
+ */
+export const submitHabitProof = (id, file) => {
+  const formData = new FormData()
+  formData.append('proof', file)
+  return authUploadFetch(`/api/habits/${id}/proof`, formData)
+}
+
+/**
+ * Fetch proof submission history for a habit.
+ * @param {string} id
+ */
+export const getProofHistory = (id) => authFetch(`/api/habits/${id}/proofs`)

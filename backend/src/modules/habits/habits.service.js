@@ -1,6 +1,7 @@
 import { query } from '../../db/query.js'
 import { cacheGet, cacheSet, cacheDelete, CacheKeys } from '../../utils/cache.js'
 import { getHabitStreak, getAllStreaks } from '../streak/streak.service.js'
+import { verifyProof } from '../../agents/proof_verifier.agent.js'
 
 /** YYYY-MM-DD string for today in server-local date. */
 function todayStr() {
@@ -19,12 +20,12 @@ function isValidDate(str) {
  * Create a new habit for the user.
  * Returns the created row.
  */
-async function createHabit(userId, title) {
+async function createHabit(userId, title, requiresProof = false) {
   const { rows } = await query(
-    `INSERT INTO habits (user_id, title)
-     VALUES ($1, $2)
-     RETURNING id, title, created_at`,
-    [userId, title]
+    `INSERT INTO habits (user_id, title, requires_proof)
+     VALUES ($1, $2, $3)
+     RETURNING id, title, requires_proof, created_at`,
+    [userId, title, requiresProof]
   )
   await cacheDelete(CacheKeys.streakAll(userId))
   await cacheDelete(CacheKeys.dashboard(userId))
@@ -44,6 +45,7 @@ async function getHabits(userId) {
     `SELECT
        h.id,
        h.title,
+       h.requires_proof,
        h.created_at,
        CASE WHEN hl.id IS NOT NULL THEN true ELSE false END AS completed_today
      FROM habits h
@@ -234,6 +236,100 @@ async function getHabitLogs(userId, habitId) {
   }
 }
 
+/**
+ * Submit a proof image for a habit and run synchronous AI verification.
+ * Creates or updates today's habit_log with the proof and verification result.
+ *
+ * @param {string} userId
+ * @param {string} habitId
+ * @param {string} imagePath  Absolute path to the uploaded image file
+ * @param {string} imageUrl   Public URL path to serve the image
+ * @returns {Promise<object>} AI verification result + log
+ */
+async function submitProof(userId, habitId, imagePath, imageUrl) {
+  const { rows: habitRows } = await query('SELECT user_id, title FROM habits WHERE id = $1', [
+    habitId
+  ])
+  if (habitRows.length === 0) {
+    const err = new Error('Habit not found')
+    err.status = 404
+    throw err
+  }
+  if (habitRows[0].user_id !== userId) {
+    const err = new Error('Access forbidden')
+    err.status = 403
+    throw err
+  }
+
+  const today = todayStr()
+
+  const { rows } = await query(
+    `INSERT INTO habit_logs (habit_id, completed_date, proof_image_url, verification_status)
+     VALUES ($1, $2, $3, 'pending')
+     ON CONFLICT (habit_id, completed_date) DO UPDATE SET
+       proof_image_url      = EXCLUDED.proof_image_url,
+       verification_status  = 'pending'
+     RETURNING id`,
+    [habitId, today, imageUrl]
+  )
+
+  const logId = rows[0].id
+  const result = await verifyProof({
+    logId,
+    userId,
+    habitId,
+    habitTitle: habitRows[0].title,
+    imagePath
+  })
+
+  return result
+}
+
+/**
+ * Return proof attempts for a habit (logs that have proof_image_url set), newest first.
+ * Verifies ownership before returning.
+ *
+ * @param {string} userId
+ * @param {string} habitId
+ * @returns {Promise<Array>}
+ */
+async function getProofHistory(userId, habitId) {
+  const { rows: habitRows } = await query('SELECT user_id FROM habits WHERE id = $1', [habitId])
+  if (habitRows.length === 0) {
+    const err = new Error('Habit not found')
+    err.status = 404
+    throw err
+  }
+  if (habitRows[0].user_id !== userId) {
+    const err = new Error('Access forbidden')
+    err.status = 403
+    throw err
+  }
+
+  const { rows } = await query(
+    `SELECT
+       id,
+       completed_date,
+       proof_image_url,
+       verification_status,
+       verification_comment,
+       vision_description,
+       verification_confidence,
+       verified_at
+     FROM habit_logs
+     WHERE habit_id = $1
+       AND proof_image_url IS NOT NULL
+     ORDER BY completed_date DESC
+     LIMIT 30`,
+    [habitId]
+  )
+
+  return rows.map((r) => ({
+    ...r,
+    completed_date: toDateStr(r.completed_date)
+  }))
+}
+
 export {
   createHabit,
   getHabits,
@@ -241,6 +337,8 @@ export {
   completeHabit,
   getActivity,
   getHabitsForDate,
-  getHabitLogs
+  getHabitLogs,
+  submitProof,
+  getProofHistory
 }
 export { getHabitStreak as getStreak, getAllStreaks }

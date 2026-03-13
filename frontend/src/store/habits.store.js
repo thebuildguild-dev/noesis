@@ -22,8 +22,8 @@ export const useHabitsStore = create((set, get) => ({
     }
   },
 
-  createHabit: async (title) => {
-    const { data } = await habitsApi.createHabit({ title })
+  createHabit: async (title, requiresProof = false) => {
+    const { data } = await habitsApi.createHabit({ title, requiresProof })
     set((s) => ({ habits: [...s.habits, { ...data.habit, completed_today: false }] }))
     return data.habit
   },
@@ -40,10 +40,7 @@ export const useHabitsStore = create((set, get) => ({
                 ...sr,
                 currentStreak: sr.currentStreak + 1,
                 totalCompletions: sr.totalCompletions + 1,
-                recentDates: [
-                  ...sr.recentDates,
-                  new Date().toISOString().slice(0, 10)
-                ].slice(-14)
+                recentDates: [...sr.recentDates, new Date().toISOString().slice(0, 10)].slice(-14)
               }
             : sr
         )
@@ -86,5 +83,21 @@ export const useHabitsStore = create((set, get) => ({
     } catch {
       // Non-critical — silently ignore
     }
+  },
+
+  markProofApproved: (id) => {
+    set((s) => ({
+      habits: s.habits.map((h) => (h.id === id ? { ...h, completed_today: true } : h)),
+      allStreaks: s.allStreaks.map((sr) =>
+        sr.habitId === id
+          ? {
+              ...sr,
+              currentStreak: sr.currentStreak + 1,
+              totalCompletions: sr.totalCompletions + 1,
+              recentDates: [...sr.recentDates, new Date().toISOString().slice(0, 10)].slice(-14)
+            }
+          : sr
+      )
+    }))
   }
 }))

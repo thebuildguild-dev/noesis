@@ -4,7 +4,7 @@ import { success, created, error } from '../../utils/response.js'
 /** Create a new habit for the authenticated user. */
 async function createHabit(req, res, next) {
   try {
-    const { title } = req.body
+    const { title, requiresProof } = req.body
 
     if (!title || typeof title !== 'string' || title.trim().length === 0) {
       return error(res, 'Habit title is required')
@@ -13,7 +13,7 @@ async function createHabit(req, res, next) {
       return error(res, 'Habit title must be 255 characters or fewer')
     }
 
-    const habit = await habitService.createHabit(req.user.id, title.trim())
+    const habit = await habitService.createHabit(req.user.id, title.trim(), Boolean(requiresProof))
     return created(res, { habit }, 'Habit created')
   } catch (err) {
     next(err)
@@ -107,6 +107,34 @@ async function getHabitLogs(req, res, next) {
   }
 }
 
+/** Upload and AI-verify a proof image for a habit. Synchronous — waits for verification. */
+async function submitProof(req, res, next) {
+  try {
+    if (!req.file) return error(res, 'No image file provided')
+
+    const imageUrl = `/uploads/${req.file.filename}`
+    const result = await habitService.submitProof(
+      req.user.id,
+      req.params.id,
+      req.file.path,
+      imageUrl
+    )
+    return success(res, result, result.approved ? 'Proof verified!' : 'Proof rejected')
+  } catch (err) {
+    next(err)
+  }
+}
+
+/** Get proof submission history for a habit. */
+async function getProofHistory(req, res, next) {
+  try {
+    const proofs = await habitService.getProofHistory(req.user.id, req.params.id)
+    return success(res, { proofs }, 'Proof history fetched')
+  } catch (err) {
+    next(err)
+  }
+}
+
 export {
   createHabit,
   getHabits,
@@ -116,5 +144,7 @@ export {
   getAllStreaks,
   getActivity,
   getHabitsForDate,
-  getHabitLogs
+  getHabitLogs,
+  submitProof,
+  getProofHistory
 }

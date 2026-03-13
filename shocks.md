@@ -202,3 +202,182 @@ CREATE TABLE agent_memory (
 | `backend/src/modules/agent/agent.routes.js`        | `GET /api/agent/messages`                              |
 | `frontend/src/store/agent.store.js`                | Zustand store, polling                                 |
 | `frontend/src/components/ui/AgentNotification.jsx` | notification card UI                                   |
+
+---
+
+# Feature Shock #3 – Proof of Work
+
+Users must provide visual proof when completing certain habits. Instead of clicking a checkbox, users upload an image that is verified by a two-step Gemini multimodal pipeline.
+
+---
+
+## Overview
+
+Habits can be flagged with `requires_proof = true` when created. For these habits, the normal "Mark complete" button is replaced with an "Upload Proof" button. The user selects an image, which is analysed by Gemini in two sequential steps before the habit log is updated.
+
+---
+
+## Multimodal Architecture
+
+```
+POST /api/habits/:id/proof (multipart image)
+  → auth.middleware.js          verify JWT
+  → multer                      save file to backend/uploads/
+  → habits.controller.js        submitProof()
+  → habits.service.js
+      1. ownership check (404/403)
+      2. UPSERT habit_log (proof_image_url, status='pending')
+      3. verify({ logId, userId, habitId, habitTitle, imagePath })
+           → proof_verifier.agent.js
+               Step 1: vision.service.js → describeImage()
+               Step 2: vision.service.js → verifyHabitProof()
+               UPDATE habit_log (status, comment, confidence, verified_at)
+               if approved → bust streak caches
+      4. return verification result to client
+```
+
+---
+
+## Vision Analysis Pipeline
+
+### Step 1 – Vision Description
+
+```
+vision.service.js → describeImage(imagePath)
+  1. readFile(imagePath) → base64 encode
+  2. GoogleGenAI.models.generateContent({
+       model: GEMINI_GENERATION_MODEL,
+       contents: [{ parts: [{ inlineData: { mimeType, data } }, { text: prompt }] }]
+     })
+  3. return one-sentence image description
+```
+
+Prompt: "Describe what is visible in this image in one sentence. Focus on objects relevant to habits such as books, food, exercise equipment, study materials."
+
+Example result: `"An open book placed on a desk."`
+
+### Step 2 – Habit Reasoning
+
+```
+vision.service.js → verifyHabitProof(habitTitle, visionDescription)
+  1. GoogleGenAI.models.generateContent({
+       model: GEMINI_GENERATION_MODEL,
+       contents: text prompt
+     })
+  2. parse JSON response
+  3. return { approved, reason, confidence }
+```
+
+Return schema: `{ "approved": true/false, "reason": "…", "confidence": 0–1 }`
+
+---
+
+## Gemini Vision Integration
+
+- Uses `@google/genai` v1.x with `inlineData` for image bytes
+- `MIME type` inferred from file extension (jpg/png/webp/gif)
+- Both steps use `GEMINI_GENERATION_MODEL` from config (must be a multimodal model, e.g. `gemini-2.0-flash`)
+- File: `backend/src/services/vision.service.js`
+
+---
+
+## Database Schema Changes
+
+Migration `012_add_proof_to_habits_and_logs.sql`
+
+```sql
+-- habits table: opt-in proof requirement
+ALTER TABLE habits
+  ADD COLUMN IF NOT EXISTS requires_proof BOOLEAN NOT NULL DEFAULT false;
+
+-- habit_logs table: proof and verification columns
+ALTER TABLE habit_logs
+  ADD COLUMN IF NOT EXISTS proof_image_url          TEXT,
+  ADD COLUMN IF NOT EXISTS verification_status      TEXT CHECK (verification_status IN ('pending', 'approved', 'rejected')),
+  ADD COLUMN IF NOT EXISTS verification_comment     TEXT,
+  ADD COLUMN IF NOT EXISTS vision_description       TEXT,
+  ADD COLUMN IF NOT EXISTS verification_confidence  FLOAT,
+  ADD COLUMN IF NOT EXISTS verified_at              TIMESTAMPTZ;
+```
+
+---
+
+## Image Upload Flow
+
+- `POST /api/habits/:id/proof` — multipart `proof` field
+- Multer disk storage: saves to `backend/uploads/proof_<timestamp>.<ext>`
+- File size limit: 10 MB; accepted types: JPEG, PNG, WebP, GIF
+- Static file serving: `GET /uploads/<filename>` via `express.static`
+- Image URL stored in `habit_logs.proof_image_url` as `/uploads/filename`
+
+---
+
+## Frontend Verification UI
+
+### ProofUploadModal
+
+Located at `frontend/src/components/ui/ProofUploadModal.jsx`.
+
+States:
+
+1. **Upload** — camera icon + file chooser + optional image preview + "Verify Proof" button
+2. **Verifying** — uploaded image (dimmed) + spinner + "AI analyzing proof…"
+3. **Result** — full `VerificationReport` with image, analysis, reasoning, result badge
+
+### VerificationReport (inline component)
+
+```
+Proof Verification
+
+Image Analysis
+"An open book placed on a desk."
+
+Reasoning
+"The image clearly shows a book which fits the habit."
+
+Confidence: 92%
+
+✓ Proof Verified        (green, if approved)
+✗ Verification Failed   (red, if rejected)
+```
+
+---
+
+## Proof History (HabitDetailPage)
+
+For habits with `requires_proof`, a "Proof History" section appears below the completion calendar. Each entry is a collapsible row showing:
+
+- Date + status badge (verified / rejected)
+- Expanded: proof image + Image Analysis + Reasoning + Confidence
+
+---
+
+## Habit Creation
+
+The "Add a new habit" form includes a "Require photo proof" checkbox. When checked, the habit is created with `requires_proof = true`.
+
+On `HabitsPage`, proof habits display:
+
+- A grey "proof required" label under the title
+- An "Upload Proof" button (blue, camera icon) instead of "Mark complete"
+- A "Verified" state (shield icon) when today's proof has been approved
+
+---
+
+## Key Files
+
+| File                                              | Role                                          |
+| ------------------------------------------------- | --------------------------------------------- |
+| `backend/src/db/migrations/012_add_proof_*.sql`   | schema: requires_proof + proof columns        |
+| `backend/src/services/vision.service.js`          | Step 1 vision + Step 2 reasoning              |
+| `backend/src/agents/proof_verifier.agent.js`      | orchestrates pipeline + DB update             |
+| `backend/src/modules/habits/habits.service.js`    | `submitProof()`, `getProofHistory()`          |
+| `backend/src/modules/habits/habits.controller.js` | `submitProof`, `getProofHistory` handlers     |
+| `backend/src/modules/habits/habits.routes.js`     | multer + `POST /:id/proof`, `GET /:id/proofs` |
+| `backend/src/app.js`                              | `express.static('/uploads')`                  |
+| `frontend/src/components/ui/ProofUploadModal.jsx` | upload + loading + result modal               |
+| `frontend/src/api/client.js`                      | `authUploadFetch()` for multipart uploads     |
+| `frontend/src/api/habits.api.js`                  | `submitHabitProof()`, `getProofHistory()`     |
+| `frontend/src/pages/habits/HabitsPage.jsx`        | proof upload flow + "require proof" toggle    |
+| `frontend/src/pages/habits/HabitDetailPage.jsx`   | `ProofHistorySection` component               |
+| `frontend/src/store/habits.store.js`              | `markProofApproved()`, `createHabit` update   |

@@ -93,3 +93,30 @@ export async function authFetch(path, options = {}, allowRefresh = true) {
 
   return data
 }
+
+/**
+ * Upload a file using multipart/form-data with Bearer auth.
+ * Does NOT set Content-Type — the browser applies the multipart boundary automatically.
+ *
+ * @param {string} path
+ * @param {FormData} formData
+ * @returns {Promise<any>}
+ */
+export async function authUploadFetch(path, formData) {
+  const token = localStorage.getItem('access_token')
+  const url = `${config.app.backendUrl}${path}`
+
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+    body: formData
+  })
+
+  const data = await res.json().catch(() => null)
+
+  if (!res.ok) {
+    throw new Error(data?.message ?? `Upload failed with status ${res.status}`)
+  }
+
+  return data
+}

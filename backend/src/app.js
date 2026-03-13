@@ -1,4 +1,6 @@
 import express from 'express'
+import { fileURLToPath } from 'url'
+import path from 'path'
 import { apiReference } from '@scalar/express-api-reference'
 import corsMiddleware from './middlewares/cors.middleware.js'
 import rateLimiter from './middlewares/rate.limiter.js'
@@ -10,6 +12,8 @@ import habitsRouter from './modules/habits/index.js'
 import journalRouter from './modules/journal/index.js'
 import agentRouter from './modules/agent/agent.routes.js'
 
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
+
 const app = express()
 
 app.set('trust proxy', 1)
@@ -17,6 +21,8 @@ app.set('trust proxy', 1)
 app.use(corsMiddleware)
 app.use(express.json())
 app.use(express.urlencoded({ extended: true }))
+
+app.use('/uploads', express.static(path.join(__dirname, '../uploads')))
 
 app.use('/api/docs', apiReference({ spec: { content: openApiSpec } }))
 

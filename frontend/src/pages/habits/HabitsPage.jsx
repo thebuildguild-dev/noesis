@@ -1,6 +1,15 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Plus, Trash2, Flame, CheckCircle2, Circle, BarChart2 } from 'lucide-react'
+import {
+  Plus,
+  Trash2,
+  Flame,
+  CheckCircle2,
+  Circle,
+  BarChart2,
+  Camera,
+  ShieldCheck
+} from 'lucide-react'
 import { useHabitsStore } from '../../store/habits.store.js'
 import { useAlertStore } from '../../store/alert.store.js'
 import { useApi } from '../../hooks/useApi.js'
@@ -11,6 +20,7 @@ import { Button } from '../../components/ui/Button.jsx'
 import { Input } from '../../components/ui/Input.jsx'
 import { ProgressBar } from '../../components/ui/ProgressBar.jsx'
 import { SkeletonCard, SkeletonLine } from '../../components/ui/SkeletonCard.jsx'
+import ProofUploadModal from '../../components/ui/ProofUploadModal.jsx'
 import { radius } from '../../utils/styles.js'
 
 const MONTH_NAMES = [
@@ -49,7 +59,7 @@ function getWeekDots(recentDates = []) {
   })
 }
 
-function HabitCard({ habit, onComplete, onDelete }) {
+function HabitCard({ habit, onComplete, onDelete, onProof }) {
   const navigate = useNavigate()
   const [confirming, setConfirming] = useState(false)
   const [justCompleted, setJustCompleted] = useState(false)
@@ -100,11 +110,19 @@ function HabitCard({ habit, onComplete, onDelete }) {
     >
       {/* Header row: title + streak badge */}
       <div className="flex items-start justify-between gap-3 mb-3">
-        <p
-          className={`font-hand text-base font-medium leading-snug flex-1 transition-all duration-300 ${habit.completed_today ? 'line-through text-ink/40' : 'text-ink'}`}
-        >
-          {habit.title}
-        </p>
+        <div className="flex-1 min-w-0">
+          <p
+            className={`font-hand text-base font-medium leading-snug transition-all duration-300 ${habit.completed_today ? 'line-through text-ink/40' : 'text-ink'}`}
+          >
+            {habit.title}
+          </p>
+          {habit.requires_proof && (
+            <span className="inline-flex items-center gap-1 font-hand text-[10px] text-[#1976d2]/70 mt-0.5">
+              <Camera size={10} strokeWidth={2.5} />
+              proof required
+            </span>
+          )}
+        </div>
         {currentStreak > 0 && (
           <div
             className="flex items-center gap-1 flex-shrink-0 px-2 py-0.5 border border-ink/20 bg-[#fff9c4]"
@@ -204,37 +222,65 @@ function HabitCard({ habit, onComplete, onDelete }) {
           )}
         </div>
 
-        <button
-          onClick={handleComplete}
-          disabled={habit.completed_today || completing}
-          className={`flex items-center gap-2 px-3 py-1.5 font-hand text-sm border-2 transition-all duration-300 disabled:cursor-default ${
-            habit.completed_today
-              ? 'bg-[#f0fff4] border-[#4caf50] text-[#4caf50]'
-              : 'border-ink hover:bg-[#4caf50] hover:border-[#4caf50] hover:text-white text-ink'
-          }`}
-          style={{
-            borderRadius: radius.btn,
-            boxShadow: habit.completed_today ? 'none' : '2px 2px 0px 0px #2d2d2d'
-          }}
-        >
-          {completing ? (
-            <span>…</span>
-          ) : habit.completed_today ? (
-            <>
-              <CheckCircle2
-                size={15}
-                strokeWidth={2.5}
-                className={`transition-transform duration-300 ${justCompleted ? 'scale-125' : ''}`}
-              />
-              {justCompleted ? 'streak +1! 🔥' : 'Done today'}
-            </>
-          ) : (
-            <>
-              <Circle size={15} strokeWidth={2.5} />
-              Mark complete
-            </>
-          )}
-        </button>
+        {habit.requires_proof ? (
+          <button
+            onClick={habit.completed_today ? undefined : () => onProof(habit)}
+            disabled={habit.completed_today}
+            className={`flex items-center gap-2 px-3 py-1.5 font-hand text-sm border-2 transition-all duration-300 disabled:cursor-default ${
+              habit.completed_today
+                ? 'bg-[#e8f5e9] border-[#4caf50] text-[#4caf50]'
+                : 'border-[#1976d2] text-[#1976d2] hover:bg-[#1976d2] hover:text-white'
+            }`}
+            style={{
+              borderRadius: radius.btn,
+              boxShadow: habit.completed_today ? 'none' : '2px 2px 0px 0px #1976d2'
+            }}
+          >
+            {habit.completed_today ? (
+              <>
+                <ShieldCheck size={15} strokeWidth={2.5} />
+                Verified
+              </>
+            ) : (
+              <>
+                <Camera size={15} strokeWidth={2.5} />
+                Upload Proof
+              </>
+            )}
+          </button>
+        ) : (
+          <button
+            onClick={handleComplete}
+            disabled={habit.completed_today || completing}
+            className={`flex items-center gap-2 px-3 py-1.5 font-hand text-sm border-2 transition-all duration-300 disabled:cursor-default ${
+              habit.completed_today
+                ? 'bg-[#f0fff4] border-[#4caf50] text-[#4caf50]'
+                : 'border-ink hover:bg-[#4caf50] hover:border-[#4caf50] hover:text-white text-ink'
+            }`}
+            style={{
+              borderRadius: radius.btn,
+              boxShadow: habit.completed_today ? 'none' : '2px 2px 0px 0px #2d2d2d'
+            }}
+          >
+            {completing ? (
+              <span>…</span>
+            ) : habit.completed_today ? (
+              <>
+                <CheckCircle2
+                  size={15}
+                  strokeWidth={2.5}
+                  className={`transition-transform duration-300 ${justCompleted ? 'scale-125' : ''}`}
+                />
+                {justCompleted ? 'streak +1! 🔥' : 'Done today'}
+              </>
+            ) : (
+              <>
+                <Circle size={15} strokeWidth={2.5} />
+                Mark complete
+              </>
+            )}
+          </button>
+        )}
       </div>
 
       {/* Metadata footer */}
@@ -255,11 +301,21 @@ function HabitCard({ habit, onComplete, onDelete }) {
 }
 
 export default function HabitsPage() {
-  const { habits, loading, fetchHabits, fetchAllStreaks, createHabit, completeHabit, deleteHabit } =
-    useHabitsStore()
+  const {
+    habits,
+    loading,
+    fetchHabits,
+    fetchAllStreaks,
+    createHabit,
+    completeHabit,
+    deleteHabit,
+    markProofApproved
+  } = useHabitsStore()
   const { loading: creating, error, call, clearError } = useApi()
   const { showSuccess } = useAlertStore()
   const [title, setTitle] = useState('')
+  const [requiresProof, setRequiresProof] = useState(false)
+  const [proofModalHabit, setProofModalHabit] = useState(null)
 
   useEffect(() => {
     fetchHabits()
@@ -271,12 +327,19 @@ export default function HabitsPage() {
     if (!title.trim()) return
     clearError()
     try {
-      await call(createHabit, title.trim())
+      await call(createHabit, title.trim(), requiresProof)
       setTitle('')
+      setRequiresProof(false)
       showSuccess('Habit added!')
     } catch {
       // error shown via useApi
     }
+  }
+
+  const handleProofApproved = (habit) => {
+    markProofApproved(habit.id)
+    setProofModalHabit(null)
+    showSuccess(`✓ ${habit.title.slice(0, 40)} — proof verified!`)
   }
 
   const completedCount = habits.filter((h) => h.completed_today).length
@@ -305,6 +368,18 @@ export default function HabitsPage() {
             <Plus size={18} strokeWidth={3} />
           </Button>
         </form>
+        <label className="flex items-center gap-2 mt-3 cursor-pointer w-fit">
+          <input
+            type="checkbox"
+            checked={requiresProof}
+            onChange={(e) => setRequiresProof(e.target.checked)}
+            className="w-4 h-4 accent-[#1976d2]"
+          />
+          <span className="font-hand text-sm text-ink/60 flex items-center gap-1.5">
+            <Camera size={13} strokeWidth={2.5} />
+            Require photo proof
+          </span>
+        </label>
         {error && <p className="font-hand text-sm text-accent mt-2">{error}</p>}
       </Card>
 
@@ -337,9 +412,24 @@ export default function HabitsPage() {
       ) : (
         <div className="flex flex-col gap-4">
           {habits.map((h) => (
-            <HabitCard key={h.id} habit={h} onComplete={completeHabit} onDelete={deleteHabit} />
+            <HabitCard
+              key={h.id}
+              habit={h}
+              onComplete={completeHabit}
+              onDelete={deleteHabit}
+              onProof={setProofModalHabit}
+            />
           ))}
         </div>
+      )}
+
+      {proofModalHabit && (
+        <ProofUploadModal
+          habitId={proofModalHabit.id}
+          habitTitle={proofModalHabit.title}
+          onClose={() => setProofModalHabit(null)}
+          onApproved={() => handleProofApproved(proofModalHabit)}
+        />
       )}
     </AppLayout>
   )

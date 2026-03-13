@@ -1,6 +1,18 @@
 import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { ArrowLeft, Flame, Target, TrendingUp, Calendar, Trash2 } from 'lucide-react'
+import {
+  ArrowLeft,
+  Flame,
+  Target,
+  TrendingUp,
+  Calendar,
+  Trash2,
+  Camera,
+  ShieldCheck,
+  XCircle,
+  ChevronDown,
+  ChevronUp
+} from 'lucide-react'
 import { useHabitsStore } from '../../store/habits.store.js'
 import { useAlertStore } from '../../store/alert.store.js'
 import { useApi } from '../../hooks/useApi.js'
@@ -10,6 +22,7 @@ import { ProgressBar } from '../../components/ui/ProgressBar.jsx'
 import { Spinner } from '../../components/ui/Spinner.jsx'
 import * as habitsApi from '../../api/habits.api.js'
 import * as streakApi from '../../api/streak.api.js'
+import config from '../../config/index.js'
 import { radius } from '../../utils/styles.js'
 
 const MONTH_NAMES = [
@@ -179,6 +192,104 @@ function StatCard({ icon: Icon, label, value, color = 'text-ink' }) {
   )
 }
 
+function ProofHistorySection({ proofs }) {
+  const [expandedId, setExpandedId] = useState(null)
+
+  if (!proofs || proofs.length === 0) {
+    return (
+      <p className="font-hand text-sm text-ink/30 italic text-center py-4">
+        No proof submissions yet
+      </p>
+    )
+  }
+
+  return (
+    <div className="flex flex-col gap-2 max-h-80 overflow-y-auto pr-1">
+      {proofs.map((p) => {
+        const approved = p.verification_status === 'approved'
+        const isExpanded = expandedId === p.id
+        const dateLabel = (() => {
+          const d = new Date(p.completed_date + 'T00:00:00')
+          return `${MONTH_NAMES[d.getMonth()]} ${d.getDate()}`
+        })()
+
+        return (
+          <div
+            key={p.id}
+            className={`border rounded overflow-hidden transition-all ${
+              approved ? 'border-[#4caf50]/30' : 'border-accent/30'
+            }`}
+          >
+            <button
+              onClick={() => setExpandedId(isExpanded ? null : p.id)}
+              className="w-full flex items-center justify-between px-3 py-2 hover:bg-ink/[0.02] transition-colors"
+            >
+              <div className="flex items-center gap-2">
+                {approved ? (
+                  <ShieldCheck
+                    size={14}
+                    strokeWidth={2.5}
+                    className="text-[#4caf50] flex-shrink-0"
+                  />
+                ) : (
+                  <XCircle size={14} strokeWidth={2.5} className="text-accent flex-shrink-0" />
+                )}
+                <span className="font-hand text-sm text-ink">{dateLabel}</span>
+                <span
+                  className={`font-hand text-xs px-1.5 py-0.5 rounded ${
+                    approved ? 'bg-[#f0fff4] text-[#4caf50]' : 'bg-[#fff5f5] text-accent'
+                  }`}
+                >
+                  {approved ? 'verified' : 'rejected'}
+                </span>
+              </div>
+              {isExpanded ? (
+                <ChevronUp size={14} strokeWidth={2.5} className="text-ink/30" />
+              ) : (
+                <ChevronDown size={14} strokeWidth={2.5} className="text-ink/30" />
+              )}
+            </button>
+
+            {isExpanded && (
+              <div className="px-3 pb-3 border-t border-dashed border-ink/10 pt-2">
+                {p.proof_image_url && (
+                  <img
+                    src={`${config.app.backendUrl}${p.proof_image_url}`}
+                    alt="Proof"
+                    className="w-full h-36 object-cover border border-ink/10 mb-2"
+                    style={{ borderRadius: radius.wobblyCard }}
+                  />
+                )}
+                {p.vision_description && (
+                  <div className="mb-2">
+                    <p className="font-marker text-xs font-bold text-ink/40 uppercase tracking-wide mb-0.5">
+                      Image Analysis
+                    </p>
+                    <p className="font-hand text-xs text-ink italic">"{p.vision_description}"</p>
+                  </div>
+                )}
+                {p.verification_comment && (
+                  <div className="mb-2">
+                    <p className="font-marker text-xs font-bold text-ink/40 uppercase tracking-wide mb-0.5">
+                      Reasoning
+                    </p>
+                    <p className="font-hand text-xs text-ink">"{p.verification_comment}"</p>
+                  </div>
+                )}
+                {p.verification_confidence != null && (
+                  <p className="font-hand text-xs text-ink/40">
+                    Confidence: {Math.round(p.verification_confidence * 100)}%
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
 export default function HabitDetailPage() {
   const { id } = useParams()
   const navigate = useNavigate()
@@ -189,6 +300,7 @@ export default function HabitDetailPage() {
   const [habit, setHabit] = useState(null)
   const [streak, setStreak] = useState(null)
   const [logs, setLogs] = useState(null)
+  const [proofs, setProofs] = useState(null)
   const [loading, setLoading] = useState(true)
   const [confirming, setConfirming] = useState(false)
 
@@ -206,10 +318,15 @@ export default function HabitDetailPage() {
   }, [id]) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
-    Promise.all([streakApi.getHabitStreak(id), habitsApi.getHabitLogs(id)])
-      .then(([streakRes, logsRes]) => {
+    Promise.all([
+      streakApi.getHabitStreak(id),
+      habitsApi.getHabitLogs(id),
+      habitsApi.getProofHistory(id)
+    ])
+      .then(([streakRes, logsRes, proofsRes]) => {
         setStreak(streakRes.data.streak)
         setLogs(logsRes.data)
+        setProofs(proofsRes.data.proofs ?? [])
       })
       .catch(() => {})
       .finally(() => setLoading(false))
@@ -332,7 +449,7 @@ export default function HabitDetailPage() {
       </Card>
 
       {/* Completion history calendar */}
-      <Card>
+      <Card className="mb-6">
         <p className="font-marker text-base font-bold text-ink mb-4">
           Completion history
           <span className="font-hand text-xs font-normal text-ink/40 ml-2">(last 90 days)</span>
@@ -345,6 +462,23 @@ export default function HabitDetailPage() {
           <MonthGroupedHistory dates={logs?.dates ?? []} />
         )}
       </Card>
+
+      {/* Proof history */}
+      {habit.requires_proof && (
+        <Card>
+          <div className="flex items-center gap-2 mb-4">
+            <Camera size={16} strokeWidth={2.5} className="text-[#1976d2]" />
+            <p className="font-marker text-base font-bold text-ink">Proof History</p>
+          </div>
+          {loading ? (
+            <div className="flex justify-center py-8">
+              <Spinner size="sm" />
+            </div>
+          ) : (
+            <ProofHistorySection proofs={proofs} />
+          )}
+        </Card>
+      )}
     </AppLayout>
   )
 }
