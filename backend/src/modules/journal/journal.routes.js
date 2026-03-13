@@ -9,6 +9,7 @@ router.use(authMiddleware)
 router.post('/', journalController.createEntry)
 router.get('/', journalController.getEntries)
 router.get('/day', journalController.getEntriesForDate)
+router.get('/insights', journalController.getInsights)
 router.put('/:id', journalController.updateEntry)
 router.delete('/:id', journalController.deleteEntry)
 

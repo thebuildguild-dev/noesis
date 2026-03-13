@@ -1,5 +1,5 @@
 import { NavLink, useNavigate } from 'react-router-dom'
-import { LayoutDashboard, Flame, BookOpen, User, LogOut, CalendarDays } from 'lucide-react'
+import { LayoutDashboard, Flame, BookOpen, User, LogOut, CalendarDays, Brain } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth.js'
 import config from '../../config/index.js'
 import { radius } from '../../utils/styles.js'
@@ -8,6 +8,7 @@ const navItems = [
   { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { to: '/habits', label: 'Habits', icon: Flame },
   { to: '/journal', label: 'Journal', icon: BookOpen },
+  { to: '/insights', label: 'Mood Insights', icon: Brain },
   { to: '/calendar', label: 'History', icon: CalendarDays },
   { to: '/profile', label: 'Profile', icon: User }
 ]

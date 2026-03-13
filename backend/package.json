@@ -10,6 +10,7 @@
     "db:migrate": "node src/db/migrate.js"
   },
   "dependencies": {
+    "@google/genai": "^1.45.0",
     "@scalar/express-api-reference": "^0.9.2",
     "bcrypt": "^6.0.0",
     "cors": "^2.8.6",

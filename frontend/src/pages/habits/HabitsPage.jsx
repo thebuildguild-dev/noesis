@@ -76,71 +76,66 @@ function MonthGroupedHistory({ dates, createdAt }) {
 
   const dateSet = new Set(dates)
   const createdDateStr = createdAt ? createdAt.slice(0, 10) : null
-
-  // Group last 90 days by month-year
-  const months = []
   const today = new Date()
-  let seenMonths = new Set()
+  const windowStart = new Date(today)
+  windowStart.setDate(today.getDate() - 89)
 
+  // Collect unique month-year pairs in the 90-day window (newest first)
+  const seenMonths = new Set()
+  const rawMonths = []
   for (let i = 0; i < 90; i++) {
     const d = new Date(today)
     d.setDate(today.getDate() - i)
-    const monthKey = `${d.getFullYear()}-${d.getMonth()}`
-    if (!seenMonths.has(monthKey)) {
-      seenMonths.add(monthKey)
-      months.push({ year: d.getFullYear(), month: d.getMonth() })
+    const key = `${d.getFullYear()}-${d.getMonth()}`
+    if (!seenMonths.has(key)) {
+      seenMonths.add(key)
+      rawMonths.push({ year: d.getFullYear(), month: d.getMonth() })
     }
   }
 
+  // Pre-build valid days per month, skipping months entirely before habit creation
+  const months = rawMonths
+    .map(({ year, month }) => {
+      const daysInMonth = new Date(year, month + 1, 0).getDate()
+      const monthStart = new Date(year, month, 1)
+      const monthEnd = new Date(year, month, daysInMonth)
+      const startDay = monthStart < windowStart ? windowStart.getDate() : 1
+      const endDay = monthEnd > today ? today.getDate() : daysInMonth
+
+      const days = []
+      for (let day = startDay; day <= endDay; day++) {
+        const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`
+        if (!createdDateStr || dateStr >= createdDateStr) {
+          days.push({ day, dateStr, done: dateSet.has(dateStr) })
+        }
+      }
+      return { year, month, days }
+    })
+    .filter(({ days }) => days.length > 0)
+
   return (
     <div className="flex flex-col gap-4 max-h-72 overflow-y-auto pr-1">
-      {months.map(({ year, month }) => {
-        const daysInMonth = new Date(year, month + 1, 0).getDate()
-        const monthStart = new Date(year, month, 1)
-        const monthEnd = new Date(year, month, daysInMonth)
-        const windowStart = new Date(today)
-        windowStart.setDate(today.getDate() - 89)
-
-        // Only show days within the 90-day window
-        const startDay = monthStart < windowStart ? windowStart.getDate() : 1
-        const endDay = monthEnd > today ? today.getDate() : daysInMonth
-        if (
-          year > today.getFullYear() ||
-          (year === today.getFullYear() && month > today.getMonth())
-        )
-          return null
-
-        const days = Array.from({ length: endDay - startDay + 1 }, (_, i) => startDay + i)
-
-        return (
-          <div key={`${year}-${month}`}>
-            <p className="font-marker text-sm font-bold text-ink/50 mb-2">
-              {MONTH_NAMES[month]} {year}
-            </p>
-            <div className="flex flex-wrap gap-1">
-              {days.map((day) => {
-                const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`
-                if (createdDateStr && dateStr < createdDateStr) return null
-                const done = dateSet.has(dateStr)
-                return (
-                  <div
-                    key={dateStr}
-                    title={`${MONTH_NAMES[month]} ${day}: ${done ? 'completed' : 'not completed'}`}
-                    className={`w-6 h-6 flex items-center justify-center text-xs border transition-colors ${
-                      done
-                        ? 'bg-[#4caf50] border-[#4caf50] text-white'
-                        : 'border-ink/15 text-ink/20'
-                    }`}
-                    style={{ borderRadius: '50%' }}
-                  >
-                    <span className="text-[9px]">{done ? '✓' : day}</span>
-                  </div>
-                )
-              })}
-            </div>
+      {months.map(({ year, month, days }) => (
+        <div key={`${year}-${month}`}>
+          <p className="font-marker text-sm font-bold text-ink/50 mb-2">
+            {MONTH_NAMES[month]} {year}
+          </p>
+          <div className="flex flex-wrap gap-1">
+            {days.map(({ day, dateStr, done }) => (
+              <div
+                key={dateStr}
+                title={`${MONTH_NAMES[month]} ${day}: ${done ? 'completed' : 'not completed'}`}
+                className={`w-6 h-6 flex items-center justify-center text-xs border transition-colors ${
+                  done ? 'bg-[#4caf50] border-[#4caf50] text-white' : 'border-ink/20 text-ink/30'
+                }`}
+                style={{ borderRadius: '50%' }}
+              >
+                <span className="text-[9px]">{done ? '✓' : day}</span>
+              </div>
+            ))}
           </div>
-        )
-      })}
+        </div>
+      ))}
     </div>
   )
 }

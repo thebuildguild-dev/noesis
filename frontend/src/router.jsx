@@ -1,5 +1,6 @@
 import { Navigate, Route, Routes } from 'react-router-dom'
 import { useAuthStore } from './store/auth.store.js'
+import LandingPage from './pages/landing/LandingPage.jsx'
 import LoginPage from './pages/login/LoginPage.jsx'
 import RegisterPage from './pages/register/RegisterPage.jsx'
 import DashboardPage from './pages/dashboard/DashboardPage.jsx'
@@ -9,6 +10,7 @@ import ProfilePage from './pages/profile/ProfilePage.jsx'
 import CalendarPage from './pages/calendar/CalendarPage.jsx'
 import ResetPasswordPage from './pages/reset-password/ResetPasswordPage.jsx'
 import ForgotPasswordPage from './pages/forgot-password/ForgotPasswordPage.jsx'
+import InsightsPage from './pages/insights/InsightsPage.jsx'
 
 function ProtectedRoute({ children }) {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
@@ -23,6 +25,14 @@ function PublicRoute({ children }) {
 export function AppRouter() {
   return (
     <Routes>
+      <Route
+        path="/"
+        element={
+          <PublicRoute>
+            <LandingPage />
+          </PublicRoute>
+        }
+      />
       <Route
         path="/login"
         element={
@@ -79,6 +89,14 @@ export function AppRouter() {
           </ProtectedRoute>
         }
       />
+      <Route
+        path="/insights"
+        element={
+          <ProtectedRoute>
+            <InsightsPage />
+          </ProtectedRoute>
+        }
+      />
       <Route path="/reset-password" element={<ResetPasswordPage />} />
       <Route
         path="/forgot-password"
@@ -88,7 +106,7 @@ export function AppRouter() {
           </PublicRoute>
         }
       />
-      <Route path="*" element={<Navigate to="/dashboard" replace />} />
+      <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   )
 }

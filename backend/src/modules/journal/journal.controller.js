@@ -77,4 +77,14 @@ async function getEntriesForDate(req, res, next) {
   }
 }
 
-export { createEntry, getEntries, updateEntry, deleteEntry, getEntriesForDate }
+/** Get aggregated mood insights for the past 14 days. */
+async function getInsights(req, res, next) {
+  try {
+    const data = await journalService.getInsights(req.user.id)
+    return success(res, data, 'Insights fetched')
+  } catch (err) {
+    next(err)
+  }
+}
+
+export { createEntry, getEntries, updateEntry, deleteEntry, getEntriesForDate, getInsights }

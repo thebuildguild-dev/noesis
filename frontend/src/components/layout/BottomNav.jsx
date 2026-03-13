@@ -1,11 +1,11 @@
 import { NavLink } from 'react-router-dom'
-import { LayoutDashboard, Flame, BookOpen, User, CalendarDays } from 'lucide-react'
+import { LayoutDashboard, Flame, BookOpen, User, Brain } from 'lucide-react'
 
 const navItems = [
   { to: '/dashboard', label: 'Home', icon: LayoutDashboard },
   { to: '/habits', label: 'Habits', icon: Flame },
   { to: '/journal', label: 'Journal', icon: BookOpen },
-  { to: '/calendar', label: 'History', icon: CalendarDays },
+  { to: '/insights', label: 'Insights', icon: Brain },
   { to: '/profile', label: 'Profile', icon: User }
 ]
 

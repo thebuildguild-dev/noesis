@@ -24,3 +24,5 @@ export const deleteJournalEntry = (id) => authFetch(`/api/journal/${id}`, { meth
  * @param {string} date YYYY-MM-DD
  */
 export const getJournalForDate = (date) => authFetch(`/api/journal/day?date=${date}`)
+
+export const getJournalInsights = () => authFetch('/api/journal/insights')
