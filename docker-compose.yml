@@ -18,7 +18,9 @@ services:
       - noesis-network
 
   frontend:
-    build: ./frontend
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.dev
     env_file:
       - .env
     ports:
@@ -28,6 +30,7 @@ services:
       # /usr/local/bin inside the image and is unaffected by this mount.
       - ./frontend:/app
       - /app/node_modules
+    command: npm run dev
     networks:
       - noesis-network
 

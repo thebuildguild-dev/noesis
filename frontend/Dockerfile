@@ -1,21 +1,28 @@
-FROM node:20
+# Stage 1: Build
+FROM node:20-alpine AS builder
 
 WORKDIR /app
 
-# Install dependencies first (cached layer — only re-runs when package.json changes)
 COPY package*.json ./
-RUN npm install
+RUN npm ci
 
-# Copy source so the image can be used standalone (without a volume mount)
 COPY . .
+RUN npm run build
 
-# Place the entrypoint outside /app so the runtime volume mount (./frontend:/app)
-# does not shadow it. The script must survive the volume override.
+# Stage 2: Serve static files
+FROM node:20-alpine
+
+WORKDIR /app
+
+COPY --from=builder /app/dist ./dist
+
+RUN npm install -g serve
+
+# Place the entrypoint outside /app so volume mounts cannot shadow it
 COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
-# Vite dev server port
 EXPOSE 5173
 
 ENTRYPOINT ["docker-entrypoint.sh"]
-CMD ["npm", "run", "dev"]
+CMD ["serve", "-s", "dist", "-l", "5173"]

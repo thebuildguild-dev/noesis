@@ -1,9 +1,6 @@
 -- 006_create_password_reset_tokens.sql
 --
 -- Stores short-lived, single-use password reset tokens.
--- The raw token is never stored — only a SHA-256 hex digest,
--- so a DB breach cannot be used to hijack accounts.
-
 CREATE TABLE IF NOT EXISTS password_reset_tokens (
   id         UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id    UUID        NOT NULL REFERENCES users(id) ON DELETE CASCADE,
