@@ -157,7 +157,7 @@ async function getActivity(userId, from, to) {
          FROM habit_logs hl
          JOIN habits h ON hl.habit_id = h.id
          WHERE h.user_id = $1
-           AND hl.completed_date >= CURRENT_DATE - INTERVAL '30 days'
+           AND hl.completed_date >= CURRENT_DATE - INTERVAL '90 days'
          GROUP BY hl.completed_date
          ORDER BY hl.completed_date ASC`,
         [userId]
@@ -191,7 +191,6 @@ async function getHabitsForDate(userId, date) {
        ON hl.habit_id = h.id
        AND hl.completed_date = $2
      WHERE h.user_id = $1
-       AND h.created_at::date <= $2
      ORDER BY h.created_at ASC`,
     [userId, date]
   )

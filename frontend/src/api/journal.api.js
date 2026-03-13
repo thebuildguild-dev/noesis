@@ -32,4 +32,10 @@ export const getJournalForDate = (date) => {
   return authFetch(`/api/journal/day?from=${from}&to=${to}`)
 }
 
+export const getJournalForRange = (fromDate, toDate) => {
+  const from = new Date(fromDate + 'T00:00:00').toISOString()
+  const to = new Date(toDate + 'T23:59:59.999').toISOString()
+  return authFetch(`/api/journal/day?from=${from}&to=${to}`)
+}
+
 export const getJournalInsights = () => authFetch('/api/journal/insights')

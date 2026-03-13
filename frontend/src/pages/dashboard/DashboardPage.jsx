@@ -239,7 +239,7 @@ export default function DashboardPage() {
           <div className="flex items-center gap-2 mb-4">
             <Activity size={16} strokeWidth={2.5} className="text-pen-blue" />
             <h2 className="font-marker text-lg font-bold text-ink">Habit Activity</h2>
-            <span className="font-hand text-xs text-ink/40 ml-1">last 28 days</span>
+            <span className="font-hand text-xs text-ink/40 ml-1">last 56 days</span>
           </div>
           <HeatmapGrid activity={activity} totalHabits={totalHabits} />
         </Card>

@@ -8,10 +8,10 @@ export function HeatmapGrid({ activity = [], totalHabits = 1 }) {
   const lookup = {}
   for (const { date, count } of activity) lookup[date] = count
 
-  // Generate last 28 days ending today
+  // Generate last 56 days ending today (8 weeks)
   const days = []
   const today = new Date()
-  for (let i = 27; i >= 0; i--) {
+  for (let i = 55; i >= 0; i--) {
     const d = new Date(today)
     d.setDate(today.getDate() - i)
     const key = d.toISOString().slice(0, 10)
@@ -33,17 +33,17 @@ export function HeatmapGrid({ activity = [], totalHabits = 1 }) {
 
   // Arrange into columns of 7 (each column = one week)
   const weeks = []
-  for (let w = 0; w < 4; w++) weeks.push(days.slice(w * 7, w * 7 + 7))
+  for (let w = 0; w < 8; w++) weeks.push(days.slice(w * 7, w * 7 + 7))
 
   return (
-    <div>
-      <div className="flex gap-1">
+    <div className="overflow-x-auto pb-2">
+      <div className="flex gap-2">
         {/* Day-of-week labels */}
-        <div className="flex flex-col gap-1 mr-1">
+        <div className="flex flex-col gap-2 mr-2">
           {dayLabels.map((l, i) => (
             <span
               key={i}
-              className="font-hand text-[10px] text-ink/30 w-3 text-center leading-none h-3 flex items-center justify-center"
+              className="font-hand text-[11px] text-ink/30 w-5 text-center leading-none h-5 flex items-center justify-center"
             >
               {l}
             </span>
@@ -51,7 +51,7 @@ export function HeatmapGrid({ activity = [], totalHabits = 1 }) {
         </div>
         {/* Week columns */}
         {weeks.map((week, wi) => (
-          <div key={wi} className="flex flex-col gap-1">
+          <div key={wi} className="flex flex-col gap-2">
             {week.map(({ key, label }) => {
               const count = lookup[key] ?? 0
               const level = intensity(count)
@@ -63,19 +63,19 @@ export function HeatmapGrid({ activity = [], totalHabits = 1 }) {
                       ? `${label}: ${count} habit${count !== 1 ? 's' : ''} completed`
                       : label
                   }
-                  className={`w-3 h-3 rounded-sm border border-ink/10 cursor-default ${colors[level]}`}
+                  className={`w-5 h-5 rounded-md border border-ink/10 transition-colors ${colors[level]} hover:opacity-80 cursor-default`}
                 />
               )
             })}
           </div>
         ))}
       </div>
-      <div className="flex items-center gap-1 mt-2">
-        <span className="font-hand text-[10px] text-ink/30">less</span>
+      <div className="flex items-center gap-1.5 mt-4">
+        <span className="font-hand text-[11px] text-ink/40">less</span>
         {colors.map((c, i) => (
-          <div key={i} className={`w-2.5 h-2.5 rounded-sm border border-ink/10 ${c}`} />
+          <div key={i} className={`w-3.5 h-3.5 rounded border border-ink/10 ${c}`} />
         ))}
-        <span className="font-hand text-[10px] text-ink/30">more</span>
+        <span className="font-hand text-[11px] text-ink/40">more</span>
       </div>
     </div>
   )

@@ -39,10 +39,11 @@ function toDateStr(year, month, day) {
 }
 
 function cellBg(count, totalHabits, hasJournal) {
-  if (!count && !hasJournal) return ''
-  if (!count && hasJournal) return 'bg-pen-blue/30'
+  const c = Number(count) || 0
+  if (c === 0 && !hasJournal) return 'bg-muted/40'
+  if (c === 0 && hasJournal) return 'bg-pen-blue/30'
   const max = Math.max(1, totalHabits)
-  const ratio = count / max
+  const ratio = c / max
   if (ratio < 0.34) return 'bg-[#4caf50]/25'
   if (ratio < 0.67) return 'bg-[#4caf50]/55'
   return 'bg-[#4caf50]/85'
@@ -100,29 +101,28 @@ export default function CalendarPage() {
   const [dayJournal, setDayJournal] = useState([])
   const [loadingDay, setLoadingDay] = useState(false)
 
-  // Fetch journal entry dates once on mount — use local dates for coloring
-  useEffect(() => {
-    journalApi
-      .getJournalEntries({ page: 1, limit: 100 })
-      .then(({ data }) => {
-        const dates = new Set(data.entries.map((e) => localDateStr(new Date(e.created_at))))
-        setAllJournalDates(dates)
-      })
-      .catch(() => {})
-  }, [])
-
   const fetchMonthActivity = useCallback(async (year, month) => {
     setLoadingActivity(true)
     try {
       const from = `${year}-${String(month + 1).padStart(2, '0')}-01`
       const lastDay = new Date(year, month + 1, 0).getDate()
       const to = `${year}-${String(month + 1).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`
-      const { data } = await habitsApi.getActivity({ from, to })
+      const [activityRes, journalRes] = await Promise.all([
+        habitsApi.getActivity({ from, to }),
+        journalApi.getJournalForRange(from, to)
+      ])
       const map = {}
-      for (const { date, count } of data.activity) map[date] = count
+      for (const { date, count } of activityRes.data.activity) map[date] = Number(count) || 0
       setActivityMap(map)
+      const dates = new Set(
+        journalRes.data.entries
+          .map((e) => localDateStr(new Date(e.created_at)))
+          .filter((d) => d >= from && d <= to)
+      )
+      setAllJournalDates(dates)
     } catch {
       setActivityMap({})
+      setAllJournalDates(new Set())
     } finally {
       setLoadingActivity(false)
     }
@@ -351,7 +351,7 @@ export default function CalendarPage() {
                               />
                             )}
                             <span
-                              className={`font-hand text-sm ${h.completed_on_date ? 'text-ink' : 'text-ink/40 line-through'}`}
+                              className={`font-hand text-sm ${h.completed_on_date ? 'text-ink/40 line-through' : 'text-ink'}`}
                             >
                               {h.title}
                             </span>

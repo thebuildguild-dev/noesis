@@ -1,5 +1,9 @@
-import { Pool } from 'pg'
+import { Pool, types } from 'pg'
 import config from '../config/index.js'
+
+// Parse DATE columns as raw strings (YYYY-MM-DD) instead of local Date objects
+// to prevent timezone shifts when converting implicitly
+types.setTypeParser(1082, (val) => val)
 
 const pool = new Pool({
   connectionString: config.db.postgresUrl,
