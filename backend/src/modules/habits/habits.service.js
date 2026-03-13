@@ -1,7 +1,21 @@
+import { createReadStream } from 'fs'
+import { unlink } from 'fs/promises'
+import { createHash } from 'crypto'
 import { query } from '../../db/query.js'
 import { cacheGet, cacheSet, cacheDelete, CacheKeys } from '../../utils/cache.js'
 import { getHabitStreak, getAllStreaks } from '../streak/streak.service.js'
 import { verifyProof } from '../../agents/proof_verifier.agent.js'
+
+/** Compute SHA-256 hex digest of a file on disk. */
+function computeFileHash(filePath) {
+  return new Promise((resolve, reject) => {
+    const hash = createHash('sha256')
+    const stream = createReadStream(filePath)
+    stream.on('data', (chunk) => hash.update(chunk))
+    stream.on('end', () => resolve(hash.digest('hex')))
+    stream.on('error', reject)
+  })
+}
 
 /** YYYY-MM-DD string for today in server-local date. */
 function todayStr() {
@@ -250,26 +264,49 @@ async function submitProof(userId, habitId, imagePath, imageUrl) {
     habitId
   ])
   if (habitRows.length === 0) {
+    await unlink(imagePath).catch(() => {})
     const err = new Error('Habit not found')
     err.status = 404
     throw err
   }
   if (habitRows[0].user_id !== userId) {
+    await unlink(imagePath).catch(() => {})
     const err = new Error('Access forbidden')
     err.status = 403
+    throw err
+  }
+
+  const hash = await computeFileHash(imagePath)
+
+  const { rows: dupRows } = await query(
+    `SELECT hl.id, h.user_id = $1 AS is_same_user
+     FROM habit_logs hl
+     JOIN habits h ON h.id = hl.habit_id
+     WHERE hl.proof_hash = $2
+     LIMIT 1`,
+    [userId, hash]
+  )
+  if (dupRows.length > 0) {
+    await unlink(imagePath).catch(() => {})
+    const msg = dupRows[0].is_same_user
+      ? 'You have already submitted this image as proof'
+      : 'This image has already been used as proof by another user'
+    const err = new Error(msg)
+    err.status = 409
     throw err
   }
 
   const today = todayStr()
 
   const { rows } = await query(
-    `INSERT INTO habit_logs (habit_id, completed_date, proof_image_url, verification_status)
-     VALUES ($1, $2, $3, 'pending')
+    `INSERT INTO habit_logs (habit_id, completed_date, proof_image_url, proof_hash, verification_status)
+     VALUES ($1, $2, $3, $4, 'pending')
      ON CONFLICT (habit_id, completed_date) DO UPDATE SET
        proof_image_url      = EXCLUDED.proof_image_url,
+       proof_hash           = EXCLUDED.proof_hash,
        verification_status  = 'pending'
      RETURNING id`,
-    [habitId, today, imageUrl]
+    [habitId, today, imageUrl, hash]
   )
 
   const logId = rows[0].id

@@ -1,3 +1,4 @@
+import { unlink } from 'fs/promises'
 import * as habitService from './habits.service.js'
 import { success, created, error } from '../../utils/response.js'
 
@@ -121,6 +122,8 @@ async function submitProof(req, res, next) {
     )
     return success(res, result, result.approved ? 'Proof verified!' : 'Proof rejected')
   } catch (err) {
+    // Best-effort cleanup for any error path not already handled in the service
+    if (req.file) await unlink(req.file.path).catch(() => {})
     next(err)
   }
 }
