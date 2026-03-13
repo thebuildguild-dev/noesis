@@ -314,10 +314,14 @@ export default function DashboardPage() {
           ) : (
             <div className="flex flex-col gap-3">
               {entries.slice(0, 4).map((e) => {
-                const wordCount = e.content.trim().split(/\s+/).filter(Boolean).length
+                const plain = e.content
+                  .replace(/<[^>]+>/g, ' ')
+                  .replace(/\s+/g, ' ')
+                  .trim()
+                const wordCount = plain.split(/\s+/).filter(Boolean).length
                 return (
                   <div key={e.id} className="border-l-2 border-pen-blue pl-3 py-1">
-                    <p className="font-hand text-sm text-ink line-clamp-2">{e.content}</p>
+                    <p className="font-hand text-sm text-ink line-clamp-2">{plain}</p>
                     <div className="flex items-center gap-2 mt-1">
                       <p className="font-hand text-xs text-ink/40">{formatDate(e.created_at)}</p>
                       <span className="font-hand text-xs text-ink/30">· {wordCount}w</span>

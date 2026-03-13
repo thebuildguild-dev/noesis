@@ -1,12 +1,14 @@
 import { Router } from 'express'
 import { fileURLToPath } from 'url'
 import path from 'path'
+import { mkdirSync } from 'fs'
 import multer from 'multer'
 import authMiddleware from '../../middlewares/auth.middleware.js'
 import * as habitController from './habits.controller.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const uploadsDir = path.join(__dirname, '../../../uploads')
+mkdirSync(uploadsDir, { recursive: true })
 
 const storage = multer.diskStorage({
   destination: (_req, _file, cb) => cb(null, uploadsDir),

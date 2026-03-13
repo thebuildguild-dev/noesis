@@ -1,74 +1,101 @@
-# Shock #1 — Mood Ring
+# AI Protosprint Feature Shock Implementation
 
-AI sentiment analysis on journal entries. Every entry gets a mood label and themes extracted by Gemini in the background. A dedicated Insights page visualises the data.
+Noesis is a habit-tracking and journaling application with an integrated AI layer built on top of Google Gemini. The four AI features described in this document are called **Feature Shocks** — each one adds a dimension of intelligence to the core product.
+
+The system implements:
+
+- **Text Analysis** — Automatic sentiment and theme extraction from journal entries (Shock #1)
+- **Multi-Agent System** — Autonomous background agents that detect habit failures and generate personalized accountability messages (Shock #2)
+- **Multimodal Vision Verification** — Image upload and AI-powered visual proof verification for habit completion (Shock #3)
+- **AI Interrogator Wildcard** — A confrontational AI gate that challenges users before they delete their data (Wildcard)
+
+All AI features use Google Gemini via the `@google/genai` SDK, configured through `GEMINI_API_KEY` and `GEMINI_GENERATION_MODEL` environment variables.
 
 ---
 
-## Journal Entry Creation
+# Feature Shock #1 — The Mood Ring
+
+## Problem
+
+Users write daily journal entries but have no way to understand their emotional patterns over time. Manual self-reflection is inconsistent and surface-level.
+
+## Solution
+
+Automatic sentiment and theme extraction. Every journal entry is analyzed by Gemini immediately after it is saved. The analysis extracts a sentiment label (e.g. `Positive`, `Anxious`, `Motivated`) and 3–5 theme keywords (e.g. `["work", "sleep", "productivity"]`). These are persisted back to the database and surfaced through an emotional dashboard.
+
+---
+
+## Implementation Flow
 
 ```
-POST /api/journal
-  → auth.middleware.js          verify JWT
-  → journal.controller.js       createEntry()
-  → journal.service.js
-      1. INSERT journal entry, return row
-      2. cacheDelete journalList cache
-      3. fire-and-forget:
-           ai.service.js → analyzeJournalEntry(content)
-             GoogleGenAI.models.generateContent()
-             parse JSON response → { sentiment, themes }
-           → UPDATE journal_entries SET sentiment, themes WHERE id
-      4. return entry to client (AI runs after response)
+Journal Entry Saved
+       ↓
+Sentiment Analysis
+  analyzeJournalEntry(content)   [Gemini text prompt]
+       ↓
+Theme Extraction
+  { sentiment: string, themes: string[] }
+       ↓
+Database Update
+  UPDATE journal_entries SET sentiment, themes WHERE id = $entryId
+       ↓
+Emotional Dashboard Visualization
+  GET /api/journal/insights → mood chart, calendar, theme bar chart
 ```
 
-## Mood Insights Fetch
+Analysis is triggered **fire-and-forget** — the POST /api/journal response is returned to the client immediately and sentiment processing happens asynchronously in the background. Journal edits reset both columns to NULL and re-trigger analysis.
+
+---
+
+## Backend Architecture
+
+### services/ai.service.js
+
+The core of Shock #1. Sends a single structured prompt to Gemini requesting:
+
+- A single-word sentiment label from a defined vocabulary: Positive, Negative, Neutral, Anxious, Happy, Angry, Sad, Motivated, Stressed, Calm, Excited
+- 3–5 theme keywords as short phrases
+
+The model is instructed to return raw JSON only (no markdown fencing). The service strips any accidental code fences before parsing. Returns `{ sentiment, themes }` or `null` on any failure.
+
+There is no separate keyword extractor utility — theme extraction is handled inline within the same Gemini prompt, keeping the implementation simple and the AI call count at one per entry.
+
+### Sentiment classification logic
+
+Gemini responds with a single word label. The frontend maps these into display categories using two hard-coded `Set` collections (`POSITIVE_SENTIMENTS`, `NEGATIVE_SENTIMENTS`) with approximately 13 terms each.
+
+### routes/journal.routes.js
 
 ```
-GET /api/journal/insights
-  → auth.middleware.js
-  → journal.controller.js       getInsights()
-  → journal.service.js
-      SELECT date, sentiment, themes
-      FROM journal_entries
-      WHERE user_id = $1
-        AND created_at >= NOW() - INTERVAL '14 days'
-        AND sentiment IS NOT NULL
-      build themeCounts map from all entries
-      return { entries, themeCounts }
+POST   /api/journal            → createEntry
+GET    /api/journal            → getEntries (paginated, ?page=&limit=)
+GET    /api/journal/day        → getEntriesForDate (?from=ISO&to=ISO)
+GET    /api/journal/insights   → getInsights
+PUT    /api/journal/:id        → updateEntry
+DELETE /api/journal/:id        → deleteEntry
 ```
 
-## Frontend Insights Page
+All routes require `authMiddleware`.
 
-```
-InsightsPage mounts
-  → useInsightsStore.fetchInsights()
-  → GET /api/journal/insights
-  → store entries + themeCounts
+### Journal Service — fire-and-forget pattern
 
-Render:
-  buildWeeklySummary(entries, themeCounts)
-    filter last 7 days → count pos/neg/neutral → pick top 3 themes → compose paragraph
+`createEntry(userId, content)` — Inserts the entry row, then calls `analyzeJournalEntry(content)` fire-and-forget via `.then().catch()`. On success, writes results back via `updateJournalAnalysis(entryId, { sentiment, themes })`.
 
-  chartData = entries mapped to { date, score }
-    score: positive=5, neutral=3, negative=1
+`updateEntry(userId, entryId, content)` — Resets `sentiment = NULL` and `themes = NULL` on edit, then re-triggers analysis fire-and-forget.
 
-  Mood Calendar = 14-day grid, cell color by sentiment
-  Top Themes = horizontal bar chart, top 8 themes
-```
+`getInsights(userId)` — Aggregates the last 14 days of journal entries. Returns per-day `{ date, sentiment, themes }` rows and a `themeCounts` frequency map computed in JavaScript.
 
-## Demo Seed
+### Storing metadata
 
-```
-seedDemoDataForUser(client, userId)
-  INSERT 5 random habits
-  INSERT habit_logs (days 3–16 ago, ~45% fill rate — no recent logs for broken streaks)
-  INSERT 14 journal entries from a pool of 50
-    each entry has sentiment + themes pre-set → insights page populated immediately
-```
+Sentiment is stored as plain `TEXT`. Themes are stored as `JSONB` (a JSON array of strings), which allows efficient querying and flexible schema evolution.
 
-## Database
+---
 
-Migration `009_add_journal_sentiment_themes.sql`
+## Database Changes
+
+**Migration:** `backend/src/db/migrations/009_add_journal_sentiment_themes.sql`
+
+`journal_entries` table extended with:
 
 ```sql
 ALTER TABLE journal_entries
@@ -76,255 +103,294 @@ ALTER TABLE journal_entries
   ADD COLUMN IF NOT EXISTS themes    JSONB;
 ```
 
-## Key Files
-
-| File                                             | Role                                    |
-| ------------------------------------------------ | --------------------------------------- |
-| `backend/src/services/ai.service.js`             | Gemini wrapper, `analyzeJournalEntry()` |
-| `backend/src/modules/journal/journal.service.js` | fire-and-forget AI + `getInsights()`    |
-| `backend/src/db/migrations/009_*.sql`            | schema change                           |
-| `backend/src/db/seed.js`                         | pre-populated sentiment + themes        |
-| `frontend/src/pages/insights/InsightsPage.jsx`   | full insights page                      |
-| `frontend/src/store/insights.store.js`           | Zustand store                           |
+Both columns are nullable — entries that have not yet been analyzed (or where analysis failed) remain `NULL`.
 
 ---
 
-# Shock #2 — Ruthless Accountability Coach
+## Emotional Dashboard
 
-Background agents scan every user's habits every minute (dev) / 10 minutes (prod). Broken streaks trigger a Gemini-generated accountability message, delivered as an in-app notification and an email.
+**File:** `frontend/src/pages/insights/InsightsPage.jsx`
+
+Four visualizations driven by `GET /api/journal/insights`:
+
+**Mood trend chart** — A Recharts `LineChart` mapping a numeric score per day over the past 14 days (Positive=5, Neutral=3, Negative/anxious=1).
+
+**Theme summary** — A horizontal bar chart of the 8 most frequent journal themes over the period, built from the `themeCounts` map returned by the insights API.
+
+**Mood Calendar** — A 14-day grid where each cell is colored green (positive), amber (neutral), red (negative), or grey (no entry). Clicking a cell reveals that day's sentiment label and theme badges.
+
+**Weekly emotional insight** — A plain-English narrative auto-generated from the dominant sentiment category over the period (e.g. "This has been a positive week").
+
+**State management:** `frontend/src/store/insights.store.js` — Zustand store; `fetchInsights()` calls `GET /api/journal/insights` and stores `{ entries, themeCounts }`.
 
 ---
 
-## Agent Job
+# Feature Shock #2 — The Ruthless Accountability Coach
+
+The second shock is a fully autonomous multi-agent system. Two agents operate independently in the background with no user interaction required.
+
+**Agent A (Auditor)** — Periodically scans all habits across all users. Detects broken streaks.
+
+**Agent B (Enforcer)** — Receives a specific habit with a broken streak. Generates a personalized accountability message using recent journal context and an escalating tone. Delivers it to the user.
+
+---
+
+## Agent Architecture
 
 ```
-node-cron (*/1 dev, */10 prod)
-  → auditor.job.js → audit()
-  → auditor.agent.js
-      SELECT habit_id, user_id, habit_title, user_email,
-             CURRENT_DATE - COALESCE(MAX(completed_date), created_at::date) AS days_missed
-      FROM habits JOIN users LEFT JOIN habit_logs
-      HAVING days_missed >= 2
-  → for each habit → enforce({ userId, userEmail, habitId, habitTitle, daysMissed })
+Cron Job (node-cron)
+       ↓
+Auditor Agent
+  ↓ getBrokenStreakHabits()
+Breaks Streak Detected (days_missed >= 2)
+       ↓
+  for each habit → Enforcer Agent
+       ↓
+  24h cooldown check (agent_memory)
+       ↓
+  Fetch last 5 journal entries (context)
+       ↓
+  Determine escalation level (1 → 2 → 3)
+       ↓
+Gemini Message Generation
+       ↓
+Notification System
+  INSERT agent_messages → frontend polls → card delivered
+  Fire-and-forget accountability email
 ```
 
-## Enforcer Agent
+---
 
-```
-enforcer.agent.js — enforce({ userId, userEmail, habitId, habitTitle, daysMissed })
-  1. getMemory(userId, habitId) from agent_memory
-  2. if last_sent_at < 24h ago → skip (cooldown)
-  3. level = prevLevel + 1 (capped at 3)
-  4. getRecentJournalEntries(userId, 5)
-  5. buildPrompt(habitTitle, daysMissed, level, journalEntries)
-  6. gemini.service.js → generateAccountabilityMessage(prompt) → message text
-  7. INSERT INTO agent_messages (user_id, habit_id, message, escalation_level)
-  8. upsertMemory(userId, habitId, level)
-  9. sendEmail → accountability template → user's email (fire-and-forget)
-```
+## Agent A — Auditor
 
-## Escalation
+### Background job and cron scheduler
 
-| Level | Tone                     | When           |
-| ----- | ------------------------ | -------------- |
-| 1     | Supportive reminder      | First message  |
-| 2     | Sarcastic accountability | Second message |
-| 3     | Ruthless coach           | Third+ message |
+**Files:** `backend/src/agents/auditor.agent.js`, `backend/src/jobs/auditor.job.js`
 
-24-hour cooldown per habit. Level increments on each send, capped at 3.
+The auditor is a thin orchestrator. It calls `getBrokenStreakHabits()` from the habit repository and iterates the results, forwarding each broken habit to the enforcer.
 
-## Accountability Email
-
-```
-emailTemplates.js → accountability({ email, habitTitle, daysMissed, message, escalationLevel })
-  subject: "[AppName] Your coach is watching — "{habit}" (Xd missed)"
-  body:
-    habit name + days missed table
-    coach message in a coloured quote block
-    accent color: green (L1) / amber (L2) / red (L3)
+```js
+async function audit() {
+  const habits = await getBrokenStreakHabits()
+  for (const habit of habits) {
+    await enforce({ userId, userEmail, habitId, habitTitle, daysMissed })
+  }
+}
 ```
 
-## Frontend Delivery
+The job scheduler wraps this in a `node-cron` schedule:
 
 ```
-AgentNotificationContainer (main.jsx)
-  polls GET /api/agent/messages every 60s
-  → agent.controller.js
-      SELECT unseen messages for user
-      UPDATE SET seen = true
-      return messages[]
-  → agent.store.js stores queue
-  → AgentNotification.jsx shows first message in bottom-right card
-      dismiss removes from local queue
+Development:  */1 * * * *   (every 1 minute)
+Production:   */10 * * * *  (every 10 minutes)
 ```
 
-## Database
+### Scanning habit logs
 
-Migration `010_create_agent_messages.sql`
+`getBrokenStreakHabits()` in `backend/src/repositories/habit.repository.js` runs a SQL JOIN across `habits`, `users`, and `habit_logs`. It computes `days_missed` as:
 
 ```sql
-CREATE TABLE agent_messages (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  habit_id UUID REFERENCES habits(id) ON DELETE SET NULL,
-  message TEXT NOT NULL,
-  escalation_level INTEGER NOT NULL DEFAULT 1,
-  seen BOOLEAN NOT NULL DEFAULT false,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+CURRENT_DATE - COALESCE(MAX(completed_date), created_at::date) AS days_missed
+```
+
+The `HAVING days_missed >= 2` clause filters to habits that have been neglected for two or more days. Returns `habit_id`, `user_id`, `habit_title`, `user_email`, and `days_missed`.
+
+---
+
+## Agent B — Enforcer
+
+**File:** `backend/src/agents/enforcer.agent.js`
+
+The enforcer manages the full personalized message generation and delivery pipeline.
+
+### Personalized message generation
+
+1. **Load memory** — Reads `agent_memory` for the `(userId, habitId)` pair to get `message_count`, `last_sent_at`, and `escalation_level`.
+2. **24h cooldown** — Skips if a message was already sent within the last 24 hours.
+3. **Escalation level** — Determines tone:
+   - Level 1: supportive and warm (first message)
+   - Level 2: sarcastic and witty (second message)
+   - Level 3: ruthless and blunt (third+ message, capped here)
+4. **Retrieve user journal entries** — Fetches the last 5 journal entries via `getRecentJournalEntries(userId, 5)`.
+5. **Analyze context** — The Gemini prompt receives the habit name, days missed, tone instructions for the escalation level, and journal snippets to personalize the message to the user's recent mindset.
+6. **Generate sarcastic accountability message using Gemini** — Calls `generateAccountabilityMessage(prompt)` from `gemini.service.js`. Returns a natural language accountability message.
+7. **Persist** — `INSERT INTO agent_messages` with `user_id`, `habit_id`, `message`, `escalation_level`, `seen = false`.
+8. **Update memory** — `upsertMemory(userId, habitId, newLevel)` increments `message_count`, sets `last_sent_at = NOW()`, and records the new escalation level.
+9. **Email** — Fire-and-forget email using the `accountability` email template.
+
+---
+
+## Database Changes
+
+**Migration:** `backend/src/db/migrations/010_create_agent_messages.sql`
+
+`agent_messages` table stores the generated messages and delivery state:
+
+```sql
+CREATE TABLE IF NOT EXISTS agent_messages (
+  id               UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id          UUID        NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  habit_id         UUID        REFERENCES habits(id) ON DELETE SET NULL,
+  message          TEXT        NOT NULL,
+  escalation_level INTEGER     NOT NULL DEFAULT 1,
+  seen             BOOLEAN     NOT NULL DEFAULT false,
+  created_at       TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 ```
 
-Migration `011_create_agent_memory.sql`
+**Migration:** `backend/src/db/migrations/011_create_agent_memory.sql`
+
+`agent_memory` stores per-habit agent state for cooldown and escalation tracking:
 
 ```sql
-CREATE TABLE agent_memory (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  habit_id UUID NOT NULL REFERENCES habits(id) ON DELETE CASCADE,
-  message_count INTEGER NOT NULL DEFAULT 0,
-  last_sent_at TIMESTAMPTZ,
-  escalation_level INTEGER NOT NULL DEFAULT 1,
+CREATE TABLE IF NOT EXISTS agent_memory (
+  id               UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id          UUID        NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  habit_id         UUID        NOT NULL REFERENCES habits(id) ON DELETE CASCADE,
+  message_count    INTEGER     NOT NULL DEFAULT 0,
+  last_sent_at     TIMESTAMPTZ,
+  escalation_level INTEGER     NOT NULL DEFAULT 1,
   UNIQUE (user_id, habit_id)
 );
 ```
 
-## Key Files
-
-| File                                               | Role                                                   |
-| -------------------------------------------------- | ------------------------------------------------------ |
-| `backend/src/jobs/auditor.job.js`                  | cron job, env-aware schedule                           |
-| `backend/src/agents/auditor.agent.js`              | broken streak SQL query                                |
-| `backend/src/agents/enforcer.agent.js`             | cooldown + escalation + Gemini + email                 |
-| `backend/src/agents/memory.service.js`             | read/write agent_memory                                |
-| `backend/src/services/gemini.service.js`           | `generateAccountabilityMessage()`                      |
-| `backend/src/repositories/habit.repository.js`     | `getBrokenStreakHabits()`, `getRecentJournalEntries()` |
-| `backend/src/utils/emailTemplates.js`              | `accountability()` email template                      |
-| `backend/src/modules/agent/agent.routes.js`        | `GET /api/agent/messages`                              |
-| `frontend/src/store/agent.store.js`                | Zustand store, polling                                 |
-| `frontend/src/components/ui/AgentNotification.jsx` | notification card UI                                   |
+The `UNIQUE (user_id, habit_id)` constraint ensures exactly one memory record per habit per user, enabling clean upsert semantics.
 
 ---
 
-# Feature Shock #3 – Proof of Work
+## Message Delivery
 
-Users must provide visual proof when completing certain habits. Instead of clicking a checkbox, users upload an image that is verified by a two-step Gemini multimodal pipeline.
+**Backend API:** `GET /api/agent/messages` (`backend/src/modules/agent/agent.routes.js`)
 
----
+The controller reads all unseen messages for the authenticated user and marks them `seen = true` in the same request (read-and-mark pattern). No second round-trip needed from the client.
 
-## Overview
+**Frontend notification system** — `frontend/src/components/ui/AgentNotification.jsx`
 
-Habits can be flagged with `requires_proof = true` when created. For these habits, the normal "Mark complete" button is replaced with an "Upload Proof" button. The user selects an image, which is analysed by Gemini in two sequential steps before the habit log is updated.
+`AgentNotificationContainer` renders as a fixed bottom-right card. It displays one message at a time (index 0 of the local queue). Dismissing removes the message from the local array without a server call.
 
----
-
-## Multimodal Architecture
-
-```
-POST /api/habits/:id/proof (multipart image)
-  → auth.middleware.js          verify JWT
-  → multer                      save file to backend/uploads/
-  → habits.controller.js        submitProof()
-  → habits.service.js
-      1. ownership check (404/403)
-      2. UPSERT habit_log (proof_image_url, status='pending')
-      3. verify({ logId, userId, habitId, habitTitle, imagePath })
-           → proof_verifier.agent.js
-               Step 1: vision.service.js → describeImage()
-               Step 2: vision.service.js → verifyHabitProof()
-               UPDATE habit_log (status, comment, confidence, verified_at)
-               if approved → bust streak caches
-      4. return verification result to client
-```
+**Polling** — `frontend/src/store/agent.store.js` (Zustand). `startPolling()` sets a `setInterval` calling `GET /api/agent/messages` every 60 seconds. `startPolling()` / `stopPolling()` are triggered by authentication state changes in `main.jsx`.
 
 ---
 
-## Vision Analysis Pipeline
+# Feature Shock #3 — Proof of Work (Multimodal)
 
-### Step 1 – Vision Description
+## Problem
+
+Users can mark any habit as complete without actually performing it. The system has no way to verify that a reported "completed" workout or study session actually happened.
+
+## Solution
+
+Preventing users from cheating by requiring visual proof. Habits can be configured with `requires_proof = true`. When completing such a habit, the user must upload an image. Gemini runs a two-step multimodal pipeline: first describing what is visible in the image, then reasoning about whether the image constitutes evidence of the claimed habit.
+
+---
+
+## Multimodal Pipeline
 
 ```
-vision.service.js → describeImage(imagePath)
-  1. readFile(imagePath) → base64 encode
-  2. GoogleGenAI.models.generateContent({
-       model: GEMINI_GENERATION_MODEL,
-       contents: [{ parts: [{ inlineData: { mimeType, data } }, { text: prompt }] }]
-     })
-  3. return one-sentence image description
+Image Upload
+  POST /api/habits/:id/proof  (multipart)
+       ↓
+SHA-256 hash computed → duplicate check (anti-cheat)
+       ↓
+INSERT habit_log with proof_image_url, status='pending'
+       ↓
+Vision Analysis
+  describeImage(imagePath)  →  Gemini Vision
+  "A bowl of salad with vegetables."
+  stored as vision_description
+       ↓
+Habit Reasoning
+  verifyHabitProof(habitTitle, visionDescription)  →  Gemini Text
+  { approved, reason, confidence }
+       ↓
+Verification Decision
+  UPDATE habit_logs SET verification_status, verification_comment,
+    vision_description, verification_confidence, verified_at
+       ↓
+Habit Log Update
+  if approved → bust streak + dashboard caches
+  return full result to client
 ```
 
-Prompt: "Describe what is visible in this image in one sentence. Focus on objects relevant to habits such as books, food, exercise equipment, study materials."
+---
+
+## Vision Step
+
+**File:** `backend/src/services/vision.service.js` — `describeImage(imagePath)`
+
+Reads the uploaded file from disk, base64-encodes it, and sends it to Gemini as a multimodal message (image bytes + text prompt). The prompt instructs Gemini to describe the image in a single sentence relevant to habit verification.
+
+The returned one-sentence description is stored in `vision_description`.
 
 Example result: `"An open book placed on a desk."`
 
-### Step 2 – Habit Reasoning
-
-```
-vision.service.js → verifyHabitProof(habitTitle, visionDescription)
-  1. GoogleGenAI.models.generateContent({
-       model: GEMINI_GENERATION_MODEL,
-       contents: text prompt
-     })
-  2. parse JSON response
-  3. return { approved, reason, confidence }
-```
-
-Return schema: `{ "approved": true/false, "reason": "…", "confidence": 0–1 }`
+Both vision steps use the `GEMINI_GENERATION_MODEL` from config (configured as a multimodal model, e.g. `gemini-2.0-flash`).
 
 ---
 
-## Gemini Vision Integration
+## Reasoning Step
 
-- Uses `@google/genai` v1.x with `inlineData` for image bytes
-- `MIME type` inferred from file extension (jpg/png/webp/gif)
-- Both steps use `GEMINI_GENERATION_MODEL` from config (must be a multimodal model, e.g. `gemini-2.0-flash`)
-- File: `backend/src/services/vision.service.js`
+**File:** `backend/src/services/vision.service.js` — `verifyHabitProof(habitTitle, visionDescription)`
+
+A second Gemini call (text only) receives the habit title and the vision description from step 1. The prompt asks Gemini to determine whether the described scene constitutes evidence of the claimed habit.
+
+Returns structured JSON:
+
+```json
+{
+  "approved": true,
+  "reason": "The image shows a prepared meal consistent with healthy eating habits.",
+  "confidence": 0.87
+}
+```
+
+The fields `approved`, `reason`, and `confidence` are written back to `habit_logs`.
 
 ---
 
-## Database Schema Changes
+## Database Changes
 
-Migration `012_add_proof_to_habits_and_logs.sql`
+**Migration:** `backend/src/db/migrations/012_add_proof_to_habits_and_logs.sql`
+
+`habit_logs` table extended with:
 
 ```sql
--- habits table: opt-in proof requirement
 ALTER TABLE habits
   ADD COLUMN IF NOT EXISTS requires_proof BOOLEAN NOT NULL DEFAULT false;
 
--- habit_logs table: proof and verification columns
 ALTER TABLE habit_logs
   ADD COLUMN IF NOT EXISTS proof_image_url          TEXT,
-  ADD COLUMN IF NOT EXISTS verification_status      TEXT CHECK (verification_status IN ('pending', 'approved', 'rejected')),
+  ADD COLUMN IF NOT EXISTS verification_status      TEXT
+        CHECK (verification_status IN ('pending', 'approved', 'rejected')),
   ADD COLUMN IF NOT EXISTS verification_comment     TEXT,
   ADD COLUMN IF NOT EXISTS vision_description       TEXT,
   ADD COLUMN IF NOT EXISTS verification_confidence  FLOAT,
   ADD COLUMN IF NOT EXISTS verified_at              TIMESTAMPTZ;
 ```
 
+**Migration:** `backend/src/db/migrations/013_add_proof_hash.sql`
+
+```sql
+ALTER TABLE habit_logs ADD COLUMN IF NOT EXISTS proof_hash TEXT;
+CREATE UNIQUE INDEX IF NOT EXISTS habit_logs_proof_hash_idx
+  ON habit_logs (proof_hash) WHERE proof_hash IS NOT NULL;
+```
+
+`proof_hash` is a SHA-256 digest of the uploaded image file. The partial unique index (only non-null values) prevents the same image from being reused as proof across different habits or users — a key anti-cheat measure. A 409 Conflict is returned if a duplicate hash is detected.
+
 ---
 
-## Image Upload Flow
+## Frontend Proof UI
 
-- `POST /api/habits/:id/proof` — multipart `proof` field
-- Multer disk storage: saves to `backend/uploads/proof_<timestamp>.<ext>`
-- File size limit: 10 MB; accepted types: JPEG, PNG, WebP, GIF
-- Static file serving: `GET /uploads/<filename>` via `express.static`
-- Image URL stored in `habit_logs.proof_image_url` as `/uploads/filename`
+**File:** `frontend/src/components/ui/ProofUploadModal.jsx`
 
----
+The modal walks the user through three states:
 
-## Frontend Verification UI
+**1. Upload state** — Camera icon drop zone with a hidden `<input type="file" accept="image/*">`. Accepts JPG, PNG, WebP, GIF up to 10 MB. Shows a preview thumbnail after file selection.
 
-### ProofUploadModal
+**2. Verifying state** — Spinner with "AI analyzing proof…" and sub-text "Running vision analysis and habit reasoning". Shown while the server pipeline runs.
 
-Located at `frontend/src/components/ui/ProofUploadModal.jsx`.
-
-States:
-
-1. **Upload** — camera icon + file chooser + optional image preview + "Verify Proof" button
-2. **Verifying** — uploaded image (dimmed) + spinner + "AI analyzing proof…"
-3. **Result** — full `VerificationReport` with image, analysis, reasoning, result badge
-
-### VerificationReport (inline component)
+**3. Result state** — The `VerificationReport` sub-component renders:
 
 ```
 Proof Verification
@@ -333,51 +399,199 @@ Image Analysis
 "An open book placed on a desk."
 
 Reasoning
-"The image clearly shows a book which fits the habit."
+"The image clearly shows reading material consistent with this habit."
 
-Confidence: 92%
+Confidence: 87%
 
-✓ Proof Verified        (green, if approved)
-✗ Verification Failed   (red, if rejected)
+✓ Proof Verified        (green badge, if approved)
+✗ Verification Failed   (red badge, if rejected)
+```
+
+A "Try again" button is shown on rejection. A "Done" button closes the modal on approval.
+
+**File:** `frontend/src/pages/habits/HabitDetailPage.jsx` — `ProofHistorySection`
+
+Only rendered when `habit.requires_proof === true`. Shows a collapsible list of past proof submissions. Each row shows the submission date and a verified/rejected status badge. Expanding a row reveals the proof image thumbnail, vision description, AI reasoning, and confidence score. Data is fetched from `GET /api/habits/:id/proofs`.
+
+---
+
+# Wildcard — The AI Interrogator
+
+## Problem
+
+Users make impulsive decisions to delete habits or journal entries, often destroying data they will later regret losing. A simple confirmation dialog is too easy to dismiss without reflection.
+
+## Solution
+
+Preventing impulsive destructive actions. Before any deletion is executed, an AI-generated confrontational question forces the user to pause and articulate a genuine reason. The deletion only proceeds if the justification is at least 10 words long and passes an AI evaluation for specificity.
+
+---
+
+## Flow
+
+```
+User clicks delete
+       ↓
+Interrogator modal appears
+       ↓
+POST /api/interrogator/question
+  AI generates confrontational question specific to the entity being deleted
+       ↓
+User reads the question
+       ↓
+User must type 10-word justification
+  (word counter shown; delete button locked until minimum met)
+       ↓
+POST /api/interrogator/evaluate
+  AI judges if justification is SPECIFIC/GENUINE vs VAGUE/WEAK
+       ↓
+If approved → Delete button unlocks → deletion proceeds
+If rejected → feedback shown in yellow banner → user must refine
 ```
 
 ---
 
-## Proof History (HabitDetailPage)
+## Implementation
 
-For habits with `requires_proof`, a "Proof History" section appears below the completion calendar. Each entry is a collapsible row showing:
+### Endpoint: /api/interrogator
 
-- Date + status badge (verified / rejected)
-- Expanded: proof image + Image Analysis + Reasoning + Confidence
+**File:** `backend/src/modules/interrogator/interrogator.routes.js`
+
+```
+POST /api/interrogator/question    (requires auth)
+POST /api/interrogator/evaluate    (requires auth)
+```
+
+Mounted in `app.js` under `/api/interrogator`.
+
+### Gemini generates interrogation message
+
+**File:** `backend/src/modules/interrogator/interrogator.controller.js`
+
+`generateQuestion({ entityType, entityName })` — Sends a Gemini prompt asking it to produce a "short, sharp confrontational question" that challenges the deletion of the specific named entity. Returns `{ question: string }`.
+
+Example for `entityType="habit"`, `entityName="Morning Workout"`:
+
+> _"You've been building this habit for weeks — what exactly changed that makes giving up the right call?"_
+
+`evaluateJustification({ entityType, entityName, justification })` — A second Gemini prompt presents the entity name and the user's justification. Gemini is instructed to judge whether the justification is `SPECIFIC and GENUINE` or `VAGUE and WEAK`. Returns:
+
+```json
+{ "approved": true, "feedback": "That's a legitimate reason." }
+```
+
+Falls back to `{ approved: true, feedback: '' }` if JSON parsing fails (fail-open to avoid blocking users on API errors). Both endpoints reuse `generateAccountabilityMessage(prompt)` from `backend/src/services/gemini.service.js`.
+
+### Frontend validates justification length
+
+**File:** `frontend/src/components/ui/InterrogatorModal.jsx`
+
+The modal accepts `entityType`, `entityName`, `onConfirm`, and `onCancel` props.
+
+On mount: fires `fetchInterrogationQuestion(entityType, entityName)` and displays the AI question.
+
+The user types into a `<textarea>`. A live word counter updates on every keystroke with color coding: red when below 10 words, green when the minimum is met. The delete button is disabled until the 10-word threshold is reached.
+
+On submit: calls `evaluateInterrogationJustification(entityType, entityName, justification)`.
+
+- `approved === true` → `onConfirm()` called → deletion proceeds
+- `approved === false` → `feedback` shown in yellow warning banner → user must revise
+- API throws → deletion allowed to proceed (fail-open)
+
+**Integration points** — The modal is used in two pages:
+
+| Page                                             | entityType        | entityName                                            |
+| ------------------------------------------------ | ----------------- | ----------------------------------------------------- |
+| `frontend/src/pages/habits/HabitDetailPage.jsx`  | `"habit"`         | `habit.title`                                         |
+| `frontend/src/pages/journal/JournalViewPage.jsx` | `"journal entry"` | Entry content stripped of HTML, truncated to 60 chars |
+
+**File:** `frontend/src/api/interrogator.api.js`
+
+```js
+export async function fetchInterrogationQuestion(entityType, entityName) { ... }
+export async function evaluateInterrogationJustification(entityType, entityName, justification) { ... }
+```
 
 ---
 
-## Habit Creation
+# System Architecture Summary
 
-The "Add a new habit" form includes a "Require photo proof" checkbox. When checked, the habit is created with `requires_proof = true`.
+All four AI features share the same Gemini backend but serve distinct purposes across the application lifecycle.
 
-On `HabitsPage`, proof habits display:
+```
+Journals
+    ↓
+Mood Analysis (Shock #1)
+  analyzeJournalEntry() → sentiment + themes stored
+  InsightsPage → mood trend chart, mood calendar, theme bar chart
+    ↓
+Habit Tracking
+    ↓
+Auditor Agent (Shock #2)
+  cron job scans all habits for broken streaks (days_missed >= 2)
+    ↓
+Enforcer Agent
+  Gemini message with journal context + escalation tone
+  INSERT agent_messages → frontend polls every 60s
+    ↓
+AI Notification
+  AgentNotificationContainer → bottom-right card delivery
+    ↓
+Proof Verification (Shock #3)
+  Image upload → SHA-256 anti-cheat hash
+    ↓
+AI Vision Reasoning
+  Step 1: describeImage() → natural language description
+  Step 2: verifyHabitProof() → approved / rejected + confidence
+  ProofUploadModal → VerificationReport with AI explanation
+    ↓
+AI Interrogator (Wildcard)
+  InterrogatorModal → Gemini confrontational question
+  10-word justification → AI evaluates SPECIFIC vs VAGUE
+  Deletion only proceeds on approval
+```
 
-- A grey "proof required" label under the title
-- An "Upload Proof" button (blue, camera icon) instead of "Mark complete"
-- A "Verified" state (shield icon) when today's proof has been approved
+## AI Call Summary
 
----
+| Feature         | Function                                | Input                                         | Output                                  |
+| --------------- | --------------------------------------- | --------------------------------------------- | --------------------------------------- |
+| Shock #1        | `analyzeJournalEntry(text)`             | Journal text                                  | `{ sentiment, themes }` JSON            |
+| Shock #2        | `generateAccountabilityMessage(prompt)` | Habit context + journal snippets + tone level | Plain-text accountability message       |
+| Shock #3 Step 1 | `describeImage(imagePath)`              | Image bytes + text prompt                     | One-sentence visual description         |
+| Shock #3 Step 2 | `verifyHabitProof(title, description)`  | Habit title + vision description              | `{ approved, reason, confidence }` JSON |
+| Wildcard Q      | `generateAccountabilityMessage(prompt)` | Entity type + entity name                     | Confrontational question string         |
+| Wildcard E      | `generateAccountabilityMessage(prompt)` | Entity name + user justification              | `{ approved, feedback }` JSON           |
 
-## Key Files
+## File Reference Index
 
-| File                                              | Role                                          |
-| ------------------------------------------------- | --------------------------------------------- |
-| `backend/src/db/migrations/012_add_proof_*.sql`   | schema: requires_proof + proof columns        |
-| `backend/src/services/vision.service.js`          | Step 1 vision + Step 2 reasoning              |
-| `backend/src/agents/proof_verifier.agent.js`      | orchestrates pipeline + DB update             |
-| `backend/src/modules/habits/habits.service.js`    | `submitProof()`, `getProofHistory()`          |
-| `backend/src/modules/habits/habits.controller.js` | `submitProof`, `getProofHistory` handlers     |
-| `backend/src/modules/habits/habits.routes.js`     | multer + `POST /:id/proof`, `GET /:id/proofs` |
-| `backend/src/app.js`                              | `express.static('/uploads')`                  |
-| `frontend/src/components/ui/ProofUploadModal.jsx` | upload + loading + result modal               |
-| `frontend/src/api/client.js`                      | `authUploadFetch()` for multipart uploads     |
-| `frontend/src/api/habits.api.js`                  | `submitHabitProof()`, `getProofHistory()`     |
-| `frontend/src/pages/habits/HabitsPage.jsx`        | proof upload flow + "require proof" toggle    |
-| `frontend/src/pages/habits/HabitDetailPage.jsx`   | `ProofHistorySection` component               |
-| `frontend/src/store/habits.store.js`              | `markProofApproved()`, `createHabit` update   |
+| File                                                             | Role                                                            |
+| ---------------------------------------------------------------- | --------------------------------------------------------------- |
+| `backend/src/services/ai.service.js`                             | Gemini text analysis — Shock #1                                 |
+| `backend/src/services/gemini.service.js`                         | Gemini text generation — Shock #2, Wildcard                     |
+| `backend/src/services/vision.service.js`                         | Gemini multimodal vision — Shock #3                             |
+| `backend/src/agents/auditor.agent.js`                            | Broken streak scanner — Shock #2                                |
+| `backend/src/agents/enforcer.agent.js`                           | Message generation and delivery — Shock #2                      |
+| `backend/src/agents/memory.service.js`                           | Per-habit agent state — Shock #2                                |
+| `backend/src/agents/proof_verifier.agent.js`                     | Proof pipeline orchestrator — Shock #3                          |
+| `backend/src/jobs/auditor.job.js`                                | node-cron scheduler — Shock #2                                  |
+| `backend/src/repositories/habit.repository.js`                   | Broken streak SQL, recent journal entries — Shock #2            |
+| `backend/src/modules/journal/journal.service.js`                 | Fire-and-forget analysis trigger — Shock #1                     |
+| `backend/src/modules/journal/journal.routes.js`                  | Journal and insights endpoints — Shock #1                       |
+| `backend/src/modules/habits/habits.service.js`                   | Proof submit and verify — Shock #3                              |
+| `backend/src/modules/habits/habits.routes.js`                    | Proof upload and history endpoints — Shock #3                   |
+| `backend/src/modules/agent/agent.routes.js`                      | Agent messages endpoint — Shock #2                              |
+| `backend/src/modules/interrogator/interrogator.routes.js`        | Interrogator endpoints — Wildcard                               |
+| `backend/src/modules/interrogator/interrogator.controller.js`    | Question and evaluation logic — Wildcard                        |
+| `backend/src/db/migrations/009_add_journal_sentiment_themes.sql` | `sentiment`, `themes` columns                                   |
+| `backend/src/db/migrations/010_create_agent_messages.sql`        | `agent_messages` table                                          |
+| `backend/src/db/migrations/011_create_agent_memory.sql`          | `agent_memory` table                                            |
+| `backend/src/db/migrations/012_add_proof_to_habits_and_logs.sql` | Proof columns on `habit_logs`                                   |
+| `backend/src/db/migrations/013_add_proof_hash.sql`               | Anti-cheat hash index                                           |
+| `frontend/src/pages/insights/InsightsPage.jsx`                   | Mood dashboard — Shock #1                                       |
+| `frontend/src/store/insights.store.js`                           | Insights Zustand store — Shock #1                               |
+| `frontend/src/components/ui/AgentNotification.jsx`               | Bottom-right message card — Shock #2                            |
+| `frontend/src/store/agent.store.js`                              | Agent polling Zustand store — Shock #2                          |
+| `frontend/src/components/ui/ProofUploadModal.jsx`                | Upload and verification UI — Shock #3                           |
+| `frontend/src/pages/habits/HabitDetailPage.jsx`                  | Proof history and interrogator integration — Shock #3, Wildcard |
+| `frontend/src/components/ui/InterrogatorModal.jsx`               | Delete gate modal — Wildcard                                    |
+| `frontend/src/api/interrogator.api.js`                           | Interrogator API client — Wildcard                              |
