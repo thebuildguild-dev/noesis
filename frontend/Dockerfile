@@ -16,6 +16,8 @@ WORKDIR /app
 
 COPY --from=builder /app/dist ./dist
 
+ENV CONFIG_TARGET=dist
+
 RUN npm install -g serve
 
 # Place the entrypoint outside /app so volume mounts cannot shadow it
