@@ -1,10 +1,11 @@
-import { NavLink, useNavigate } from 'react-router-dom'
-import { LayoutDashboard, Flame, BookOpen, User } from 'lucide-react'
+import { NavLink } from 'react-router-dom'
+import { LayoutDashboard, Flame, BookOpen, User, CalendarDays } from 'lucide-react'
 
 const navItems = [
   { to: '/dashboard', label: 'Home', icon: LayoutDashboard },
   { to: '/habits', label: 'Habits', icon: Flame },
   { to: '/journal', label: 'Journal', icon: BookOpen },
+  { to: '/calendar', label: 'History', icon: CalendarDays },
   { to: '/profile', label: 'Profile', icon: User }
 ]
 

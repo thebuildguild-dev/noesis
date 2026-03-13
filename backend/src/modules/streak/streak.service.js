@@ -162,4 +162,55 @@ async function getHabitStreak(userId, habitId) {
   return result
 }
 
-export { computeStreaks, getHabitStreak }
+/**
+ * Return streak stats for ALL habits belonging to a user in a single query.
+ * Includes `recentDates` (last 14 completion dates) per habit for weekly mini-grids.
+ *
+ * @param {string} userId
+ * @returns {Promise<Array<{
+ *   habitId: string,
+ *   currentStreak: number,
+ *   longestStreak: number,
+ *   totalCompletions: number,
+ *   lastCompletedDate: string|null,
+ *   recentDates: string[]
+ * }>>}
+ */
+async function getAllStreaks(userId) {
+  const { rows: habits } = await query('SELECT id FROM habits WHERE user_id = $1 ORDER BY created_at ASC', [
+    userId
+  ])
+  if (habits.length === 0) return []
+
+  const habitIds = habits.map((h) => h.id)
+
+  const { rows: logs } = await query(
+    `SELECT habit_id, completed_date
+     FROM habit_logs
+     WHERE habit_id = ANY($1)
+     ORDER BY habit_id, completed_date ASC`,
+    [habitIds]
+  )
+
+  const logsByHabit = {}
+  for (const habit of habits) logsByHabit[habit.id] = []
+  for (const log of logs) logsByHabit[log.habit_id].push(log.completed_date)
+
+  return habits.map((habit) => {
+    const dates = logsByHabit[habit.id]
+    const { currentStreak, longestStreak } = computeStreaks(dates)
+    const lastCompletedDate = dates.length > 0 ? toDateStr(dates[dates.length - 1]) : null
+    const recentDates = dates.slice(-14).map(toDateStr)
+
+    return {
+      habitId: habit.id,
+      currentStreak,
+      longestStreak,
+      totalCompletions: dates.length,
+      lastCompletedDate,
+      recentDates
+    }
+  })
+}
+
+export { computeStreaks, getHabitStreak, getAllStreaks }

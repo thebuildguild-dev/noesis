@@ -18,3 +18,9 @@ export const updateJournalEntry = (id, body) =>
 
 /** @param {string} id */
 export const deleteJournalEntry = (id) => authFetch(`/api/journal/${id}`, { method: 'DELETE' })
+
+/**
+ * Fetch journal entries created on a specific date.
+ * @param {string} date YYYY-MM-DD
+ */
+export const getJournalForDate = (date) => authFetch(`/api/journal/day?date=${date}`)

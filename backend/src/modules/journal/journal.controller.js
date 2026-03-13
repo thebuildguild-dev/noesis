@@ -63,4 +63,18 @@ async function deleteEntry(req, res, next) {
   }
 }
 
-export { createEntry, getEntries, updateEntry, deleteEntry }
+/** Get journal entries created on a specific date (?date=YYYY-MM-DD). */
+async function getEntriesForDate(req, res, next) {
+  try {
+    const { date } = req.query
+    if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+      return error(res, 'date query param is required (YYYY-MM-DD)')
+    }
+    const entries = await journalService.getEntriesForDate(req.user.id, date)
+    return success(res, { entries }, 'Journal entries for date fetched')
+  } catch (err) {
+    next(err)
+  }
+}
+
+export { createEntry, getEntries, updateEntry, deleteEntry, getEntriesForDate }

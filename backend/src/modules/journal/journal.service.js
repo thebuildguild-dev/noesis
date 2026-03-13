@@ -122,4 +122,22 @@ async function deleteEntry(userId, entryId) {
   await cacheDelete(CacheKeys.journalList(userId))
 }
 
-export { createEntry, getEntries, updateEntry, deleteEntry }
+export { createEntry, getEntries, updateEntry, deleteEntry, getEntriesForDate }
+
+/**
+ * Return journal entries created on a specific calendar date.
+ *
+ * @param {string} userId
+ * @param {string} date  YYYY-MM-DD
+ */
+async function getEntriesForDate(userId, date) {
+  const { rows } = await query(
+    `SELECT id, content, created_at, updated_at
+     FROM journal_entries
+     WHERE user_id = $1
+       AND DATE(created_at) = $2
+     ORDER BY created_at DESC`,
+    [userId, date]
+  )
+  return rows
+}

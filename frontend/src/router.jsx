@@ -6,6 +6,8 @@ import DashboardPage from './pages/dashboard/DashboardPage.jsx'
 import HabitsPage from './pages/habits/HabitsPage.jsx'
 import JournalPage from './pages/journal/JournalPage.jsx'
 import ProfilePage from './pages/profile/ProfilePage.jsx'
+import CalendarPage from './pages/calendar/CalendarPage.jsx'
+import ResetPasswordPage from './pages/reset-password/ResetPasswordPage.jsx'
 
 function ProtectedRoute({ children }) {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
@@ -68,6 +70,15 @@ export function AppRouter() {
           </ProtectedRoute>
         }
       />
+      <Route
+        path="/calendar"
+        element={
+          <ProtectedRoute>
+            <CalendarPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route path="/reset-password" element={<ResetPasswordPage />} />
       <Route path="*" element={<Navigate to="/dashboard" replace />} />
     </Routes>
   )

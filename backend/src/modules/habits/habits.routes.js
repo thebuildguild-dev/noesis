@@ -8,8 +8,12 @@ router.use(authMiddleware)
 
 router.post('/', habitController.createHabit)
 router.get('/', habitController.getHabits)
+router.get('/streaks', habitController.getAllStreaks)
+router.get('/activity', habitController.getActivity)
+router.get('/day', habitController.getHabitsForDate)
 router.delete('/:id', habitController.deleteHabit)
 router.post('/:id/complete', habitController.completeHabit)
 router.get('/:id/streak', habitController.getStreak)
+router.get('/:id/logs', habitController.getHabitLogs)
 
 export default router

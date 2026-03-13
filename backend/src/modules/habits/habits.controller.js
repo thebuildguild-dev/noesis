@@ -65,4 +65,56 @@ async function getStreak(req, res, next) {
   }
 }
 
-export { createHabit, getHabits, deleteHabit, completeHabit, getStreak }
+/** Get streak stats for all habits of the authenticated user. */
+async function getAllStreaks(req, res, next) {
+  try {
+    const streaks = await habitService.getAllStreaks(req.user.id)
+    return success(res, { streaks }, 'Streaks fetched')
+  } catch (err) {
+    next(err)
+  }
+}
+
+/** Get daily habit completion counts. Accepts optional ?from=YYYY-MM-DD&to=YYYY-MM-DD. */
+async function getActivity(req, res, next) {
+  try {
+    const activity = await habitService.getActivity(req.user.id, req.query.from, req.query.to)
+    return success(res, { activity }, 'Activity fetched')
+  } catch (err) {
+    next(err)
+  }
+}
+
+/** Get all habits with completion status for a specific date (?date=YYYY-MM-DD). */
+async function getHabitsForDate(req, res, next) {
+  try {
+    const { date } = req.query
+    if (!date) return error(res, 'date query param is required (YYYY-MM-DD)')
+    const habits = await habitService.getHabitsForDate(req.user.id, date)
+    return success(res, { habits }, 'Habits for date fetched')
+  } catch (err) {
+    next(err)
+  }
+}
+
+/** Get completion dates for a single habit over the last 90 days. */
+async function getHabitLogs(req, res, next) {
+  try {
+    const dates = await habitService.getHabitLogs(req.user.id, req.params.id)
+    return success(res, { dates }, 'Habit logs fetched')
+  } catch (err) {
+    next(err)
+  }
+}
+
+export {
+  createHabit,
+  getHabits,
+  deleteHabit,
+  completeHabit,
+  getStreak,
+  getAllStreaks,
+  getActivity,
+  getHabitsForDate,
+  getHabitLogs
+}
