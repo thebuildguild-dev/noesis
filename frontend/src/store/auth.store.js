@@ -1,19 +1,38 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import * as authApi from '../api/auth.api.js'
+import { registerAuthSessionHandlers } from '../utils/authSession.js'
+
+const AUTH_STORAGE_KEY = 'noesis-auth'
 
 const syncToken = (token) => {
   if (token) localStorage.setItem('access_token', token)
   else localStorage.removeItem('access_token')
 }
 
+const readPersistedRefreshToken = () => {
+  const raw = localStorage.getItem(AUTH_STORAGE_KEY)
+  if (!raw) return null
+
+  try {
+    const parsed = JSON.parse(raw)
+    return parsed?.state?.refreshToken ?? null
+  } catch {
+    return null
+  }
+}
+
+const emptyAuthState = {
+  user: null,
+  accessToken: null,
+  refreshToken: null,
+  isAuthenticated: false
+}
+
 export const useAuthStore = create(
   persist(
     (set, get) => ({
-      user: null,
-      accessToken: null,
-      refreshToken: null,
-      isAuthenticated: false,
+      ...emptyAuthState,
 
       login: async (email, password) => {
         const { data } = await authApi.login({ email, password })
@@ -48,26 +67,32 @@ export const useAuthStore = create(
           const { refreshToken } = get()
           if (refreshToken) await authApi.logout({ refreshToken })
         } finally {
-          syncToken(null)
-          set({ user: null, accessToken: null, refreshToken: null, isAuthenticated: false })
+          get().clearAuth()
         }
+      },
+
+      clearAuth: () => {
+        syncToken(null)
+        set(emptyAuthState)
       },
 
       setUser: (user) => set({ user }),
 
       refreshAuth: async () => {
-        const { refreshToken } = get()
+        const refreshToken = get().refreshToken ?? readPersistedRefreshToken()
         if (!refreshToken) throw new Error('No refresh token')
         const { data } = await authApi.refresh({ refreshToken })
         syncToken(data.accessToken)
         set({
           accessToken: data.accessToken,
-          refreshToken: data.refreshToken
+          refreshToken: data.refreshToken,
+          isAuthenticated: true
         })
+        return data
       }
     }),
     {
-      name: 'noesis-auth',
+      name: AUTH_STORAGE_KEY,
       // Re-sync access_token to localStorage whenever the persisted state hydrates
       onRehydrateStorage: () => (state) => {
         if (state?.accessToken) syncToken(state.accessToken)
@@ -75,3 +100,8 @@ export const useAuthStore = create(
     }
   )
 )
+
+registerAuthSessionHandlers({
+  refreshAuth: () => useAuthStore.getState().refreshAuth(),
+  clearAuth: () => useAuthStore.getState().clearAuth()
+})
