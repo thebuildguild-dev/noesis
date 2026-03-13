@@ -28,13 +28,7 @@ export function HeatmapGrid({ activity = [], totalHabits = 1 }) {
     return 3
   }
 
-  const colors = [
-    'bg-muted/40',
-    'bg-pen-blue/25',
-    'bg-pen-blue/55',
-    'bg-pen-blue'
-  ]
-
+  const colors = ['bg-muted/40', 'bg-pen-blue/25', 'bg-pen-blue/55', 'bg-pen-blue']
   const dayLabels = ['M', 'T', 'W', 'T', 'F', 'S', 'S']
 
   // Arrange into columns of 7 (each column = one week)
@@ -47,7 +41,10 @@ export function HeatmapGrid({ activity = [], totalHabits = 1 }) {
         {/* Day-of-week labels */}
         <div className="flex flex-col gap-1 mr-1">
           {dayLabels.map((l, i) => (
-            <span key={i} className="font-hand text-[10px] text-ink/30 w-3 text-center leading-none h-3 flex items-center justify-center">
+            <span
+              key={i}
+              className="font-hand text-[10px] text-ink/30 w-3 text-center leading-none h-3 flex items-center justify-center"
+            >
               {l}
             </span>
           ))}
@@ -61,7 +58,11 @@ export function HeatmapGrid({ activity = [], totalHabits = 1 }) {
               return (
                 <div
                   key={key}
-                  title={count > 0 ? `${label}: ${count} habit${count !== 1 ? 's' : ''} completed` : label}
+                  title={
+                    count > 0
+                      ? `${label}: ${count} habit${count !== 1 ? 's' : ''} completed`
+                      : label
+                  }
                   className={`w-3 h-3 rounded-sm border border-ink/10 cursor-default ${colors[level]}`}
                 />
               )

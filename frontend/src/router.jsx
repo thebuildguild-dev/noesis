@@ -8,6 +8,7 @@ import JournalPage from './pages/journal/JournalPage.jsx'
 import ProfilePage from './pages/profile/ProfilePage.jsx'
 import CalendarPage from './pages/calendar/CalendarPage.jsx'
 import ResetPasswordPage from './pages/reset-password/ResetPasswordPage.jsx'
+import ForgotPasswordPage from './pages/forgot-password/ForgotPasswordPage.jsx'
 
 function ProtectedRoute({ children }) {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
@@ -79,6 +80,14 @@ export function AppRouter() {
         }
       />
       <Route path="/reset-password" element={<ResetPasswordPage />} />
+      <Route
+        path="/forgot-password"
+        element={
+          <PublicRoute>
+            <ForgotPasswordPage />
+          </PublicRoute>
+        }
+      />
       <Route path="*" element={<Navigate to="/dashboard" replace />} />
     </Routes>
   )

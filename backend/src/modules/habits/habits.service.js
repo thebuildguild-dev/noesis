@@ -7,6 +7,9 @@ function todayStr() {
   return new Date().toISOString().slice(0, 10)
 }
 
+/** Safely format a pg DATE/TIMESTAMP (Date object or raw string) to YYYY-MM-DD. */
+const toDateStr = (d) => (d instanceof Date ? d.toISOString().slice(0, 10) : String(d).slice(0, 10))
+
 /** Validate a YYYY-MM-DD date string. */
 function isValidDate(str) {
   return /^\d{4}-\d{2}-\d{2}$/.test(str) && !isNaN(Date.parse(str))
@@ -158,7 +161,7 @@ async function getActivity(userId, from, to) {
         [userId]
       )
 
-  return rows.map((r) => ({ date: String(r.date).slice(0, 10), count: Number(r.count) }))
+  return rows.map((r) => ({ date: toDateStr(r.date), count: Number(r.count) }))
 }
 
 /**
@@ -186,6 +189,7 @@ async function getHabitsForDate(userId, date) {
        ON hl.habit_id = h.id
        AND hl.completed_date = $2
      WHERE h.user_id = $1
+       AND h.created_at::date <= $2
      ORDER BY h.created_at ASC`,
     [userId, date]
   )
@@ -194,14 +198,17 @@ async function getHabitsForDate(userId, date) {
 
 /**
  * Return completion dates for a specific habit (last 90 days), sorted newest-first.
+ * Also returns the habit's createdAt so the frontend can skip days before creation.
  * Ownership is verified.
  *
  * @param {string} userId
  * @param {string} habitId
- * @returns {Promise<string[]>} YYYY-MM-DD strings
+ * @returns {Promise<{ dates: string[], createdAt: string }>}
  */
 async function getHabitLogs(userId, habitId) {
-  const { rows: habitRows } = await query('SELECT user_id FROM habits WHERE id = $1', [habitId])
+  const { rows: habitRows } = await query('SELECT user_id, created_at FROM habits WHERE id = $1', [
+    habitId
+  ])
   if (habitRows.length === 0) {
     const err = new Error('Habit not found')
     err.status = 404
@@ -221,7 +228,10 @@ async function getHabitLogs(userId, habitId) {
      ORDER BY completed_date DESC`,
     [habitId]
   )
-  return rows.map((r) => String(r.completed_date).slice(0, 10))
+  return {
+    dates: rows.map((r) => toDateStr(r.completed_date)),
+    createdAt: toDateStr(habitRows[0].created_at)
+  }
 }
 
 export {

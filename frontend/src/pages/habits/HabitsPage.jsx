@@ -65,7 +65,7 @@ function getWeekDots(recentDates = []) {
 /**
  * Groups completion dates into months and shows a compact grid for each.
  */
-function MonthGroupedHistory({ dates }) {
+function MonthGroupedHistory({ dates, createdAt }) {
   if (!dates || dates.length === 0) {
     return (
       <p className="font-hand text-sm text-ink/30 italic text-center py-4">
@@ -75,6 +75,7 @@ function MonthGroupedHistory({ dates }) {
   }
 
   const dateSet = new Set(dates)
+  const createdDateStr = createdAt ? createdAt.slice(0, 10) : null
 
   // Group last 90 days by month-year
   const months = []
@@ -119,6 +120,7 @@ function MonthGroupedHistory({ dates }) {
             <div className="flex flex-wrap gap-1">
               {days.map((day) => {
                 const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`
+                if (createdDateStr && dateStr < createdDateStr) return null
                 const done = dateSet.has(dateStr)
                 return (
                   <div
@@ -148,6 +150,7 @@ function HabitCard({ habit, onComplete, onDelete }) {
   const [justCompleted, setJustCompleted] = useState(false)
   const [showTimeline, setShowTimeline] = useState(false)
   const [timelineLogs, setTimelineLogs] = useState(null)
+  const [timelineCreatedAt, setTimelineCreatedAt] = useState(null)
   const [loadingLogs, setLoadingLogs] = useState(false)
   const { loading: completing, call: callComplete } = useApi()
   const { loading: deleting, call: callDelete } = useApi()
@@ -197,6 +200,7 @@ function HabitCard({ habit, onComplete, onDelete }) {
       try {
         const { data } = await habitsApi.getHabitLogs(habit.id)
         setTimelineLogs(data.dates)
+        setTimelineCreatedAt(data.createdAt)
       } catch {
         setTimelineLogs([])
       } finally {
@@ -364,7 +368,7 @@ function HabitCard({ habit, onComplete, onDelete }) {
               <Spinner size="sm" />
             </div>
           ) : (
-            <MonthGroupedHistory dates={timelineLogs ?? []} />
+            <MonthGroupedHistory dates={timelineLogs ?? []} createdAt={timelineCreatedAt} />
           )}
         </div>
       )}

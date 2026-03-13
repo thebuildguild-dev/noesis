@@ -100,8 +100,8 @@ async function getHabitsForDate(req, res, next) {
 /** Get completion dates for a single habit over the last 90 days. */
 async function getHabitLogs(req, res, next) {
   try {
-    const dates = await habitService.getHabitLogs(req.user.id, req.params.id)
-    return success(res, { dates }, 'Habit logs fetched')
+    const { dates, createdAt } = await habitService.getHabitLogs(req.user.id, req.params.id)
+    return success(res, { dates, createdAt }, 'Habit logs fetched')
   } catch (err) {
     next(err)
   }
