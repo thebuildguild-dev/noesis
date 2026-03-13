@@ -11,6 +11,7 @@ import authRouter from './modules/auth/index.js'
 import habitsRouter from './modules/habits/index.js'
 import journalRouter from './modules/journal/index.js'
 import agentRouter from './modules/agent/agent.routes.js'
+import interrogatorRouter from './modules/interrogator/interrogator.routes.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
@@ -34,6 +35,7 @@ app.use('/api/auth', authRouter)
 app.use('/api/habits', habitsRouter)
 app.use('/api/journal', journalRouter)
 app.use('/api/agent', agentRouter)
+app.use('/api/interrogator', interrogatorRouter)
 
 // 404 handler
 app.use((req, res) => {

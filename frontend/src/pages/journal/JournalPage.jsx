@@ -11,6 +11,7 @@ import { Button } from '../../components/ui/Button.jsx'
 import { RichTextEditor } from '../../components/ui/RichTextEditor.jsx'
 import { Spinner } from '../../components/ui/Spinner.jsx'
 import { SkeletonCard } from '../../components/ui/SkeletonCard.jsx'
+import InterrogatorModal from '../../components/ui/InterrogatorModal.jsx'
 
 function stripHtml(html) {
   return html
@@ -48,63 +49,42 @@ function formatTime(d) {
 
 function EntryCard({ entry, onDelete }) {
   const navigate = useNavigate()
-  const [confirming, setConfirming] = useState(false)
-  const { loading, call } = useApi()
+  const [interrogating, setInterrogating] = useState(false)
+  const { call } = useApi()
   const { showSuccess } = useAlertStore()
 
-  const handleDelete = async (e) => {
-    e.stopPropagation()
+  const handleDelete = async () => {
     await call(onDelete, entry.id)
     showSuccess('Entry deleted')
-    setConfirming(false)
   }
 
   const wc = wordCount(entry.content)
   const isEdited = entry.updated_at && entry.updated_at !== entry.created_at
 
   return (
-    <Card
-      className="group cursor-pointer hover:translate-y-[-1px] transition-all duration-150"
-      onClick={() => navigate(`/journal/${entry.id}`, { state: { entry } })}
-    >
-      {/* Date header */}
-      <div className="flex items-center justify-between gap-2 mb-3 pb-2 border-b border-dashed border-muted">
-        <div className="flex items-center gap-2">
-          <BookOpen size={13} strokeWidth={2.5} className="text-pen-blue flex-shrink-0" />
-          <div>
-            <span className="font-marker text-sm font-bold text-ink">
-              {formatDateLong(entry.created_at)}
-            </span>
-            <span className="font-hand text-xs text-ink/40 ml-1.5">
-              {formatTime(entry.created_at)}
-            </span>
+    <>
+      <Card
+        className="group cursor-pointer hover:translate-y-[-1px] transition-all duration-150"
+        onClick={() => navigate(`/journal/${entry.id}`, { state: { entry } })}
+      >
+        {/* Date header */}
+        <div className="flex items-center justify-between gap-2 mb-3 pb-2 border-b border-dashed border-muted">
+          <div className="flex items-center gap-2">
+            <BookOpen size={13} strokeWidth={2.5} className="text-pen-blue flex-shrink-0" />
+            <div>
+              <span className="font-marker text-sm font-bold text-ink">
+                {formatDateLong(entry.created_at)}
+              </span>
+              <span className="font-hand text-xs text-ink/40 ml-1.5">
+                {formatTime(entry.created_at)}
+              </span>
+            </div>
           </div>
-        </div>
 
-        <div
-          className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity"
-          onClick={(e) => e.stopPropagation()}
-        >
-          {confirming ? (
-            <>
-              <button
-                onClick={handleDelete}
-                disabled={loading}
-                className="px-2 py-0.5 font-hand text-xs text-white bg-accent rounded border border-accent disabled:opacity-50"
-              >
-                {loading ? '…' : 'delete'}
-              </button>
-              <button
-                onClick={(e) => {
-                  e.stopPropagation()
-                  setConfirming(false)
-                }}
-                className="px-2 py-0.5 font-hand text-xs text-ink/50 hover:text-ink rounded border border-muted"
-              >
-                no
-              </button>
-            </>
-          ) : (
+          <div
+            className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity"
+            onClick={(e) => e.stopPropagation()}
+          >
             <>
               <button
                 onClick={(e) => {
@@ -119,7 +99,7 @@ function EntryCard({ entry, onDelete }) {
               <button
                 onClick={(e) => {
                   e.stopPropagation()
-                  setConfirming(true)
+                  setInterrogating(true)
                 }}
                 className="p-1 text-ink/40 hover:text-accent transition-colors rounded"
                 title="Delete entry"
@@ -127,22 +107,35 @@ function EntryCard({ entry, onDelete }) {
                 <Trash2 size={13} strokeWidth={2.5} />
               </button>
             </>
-          )}
+          </div>
         </div>
-      </div>
 
-      <p className="font-hand text-base text-ink leading-relaxed">{entryPreview(entry.content)}</p>
+        <p className="font-hand text-base text-ink leading-relaxed">
+          {entryPreview(entry.content)}
+        </p>
 
-      <div className="flex items-center justify-between mt-3 pt-2 border-t border-dashed border-muted/60">
-        <div className="flex items-center gap-2">
-          <span className="font-hand text-xs text-ink/30">
-            {wc} word{wc !== 1 ? 's' : ''}
-          </span>
-          {isEdited && <span className="font-hand text-xs text-ink/25 italic">· edited</span>}
+        <div className="flex items-center justify-between mt-3 pt-2 border-t border-dashed border-muted/60">
+          <div className="flex items-center gap-2">
+            <span className="font-hand text-xs text-ink/30">
+              {wc} word{wc !== 1 ? 's' : ''}
+            </span>
+            {isEdited && <span className="font-hand text-xs text-ink/25 italic">· edited</span>}
+          </div>
+          <span className="font-hand text-xs text-pen-blue">read more →</span>
         </div>
-        <span className="font-hand text-xs text-pen-blue">read more →</span>
-      </div>
-    </Card>
+      </Card>
+      {interrogating && (
+        <InterrogatorModal
+          entityType="journal entry"
+          entityName={entryPreview(entry.content, 60)}
+          onConfirm={() => {
+            setInterrogating(false)
+            handleDelete()
+          }}
+          onCancel={() => setInterrogating(false)}
+        />
+      )}
+    </>
   )
 }
 
