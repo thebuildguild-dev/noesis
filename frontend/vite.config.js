@@ -11,5 +11,10 @@ export default defineConfig({
       // Required for hot reload inside Docker volume mounts
       usePolling: true
     }
+  },
+  optimizeDeps: {
+    // Explicit entry so Vite can pre-bundle deps even when index.html is not
+    // yet readable at startup (e.g. inside a Docker volume mount).
+    entries: ['src/main.jsx']
   }
 })
