@@ -1,7 +1,13 @@
 import cors from 'cors'
+import config from '../config/index.js'
 
 const rawOrigins = process.env.CORS_ORIGINS || ''
-const allowAll = rawOrigins.trim() === '*'
+const isDev = config.app.env !== 'production'
+
+// In dev with no CORS_ORIGINS set → allow all origins
+// In prod with CORS_ORIGINS=* → allow all origins
+// In prod with CORS_ORIGINS=url1,url2 → whitelist
+const allowAll = rawOrigins.trim() === '*' || (isDev && rawOrigins.trim() === '')
 
 export const corsOrigins = allowAll
   ? '*'

@@ -1,5 +1,5 @@
 import { GoogleGenAI } from '@google/genai'
-import config from '../../config/index.js'
+import config from '../config/index.js'
 
 const PROMPT = `Analyze the following journal entry.
 
