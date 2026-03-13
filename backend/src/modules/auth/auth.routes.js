@@ -13,5 +13,6 @@ router.post('/reset-password', authController.resetPassword)
 
 router.get('/me', authMiddleware, authController.me)
 router.put('/profile', authMiddleware, authController.updateProfile)
+router.post('/reset', authMiddleware, authController.resetAccount)
 
 export default router

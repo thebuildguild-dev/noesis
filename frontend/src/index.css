@@ -1,0 +1,40 @@
+@import url('https://fonts.googleapis.com/css2?family=Kalam:wght@400;700&family=Patrick+Hand&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    background-color: #fdfbf7;
+    background-image: radial-gradient(#e5e0d8 1px, transparent 1px);
+    background-size: 24px 24px;
+    font-family: 'Patrick Hand', cursive;
+    color: #2d2d2d;
+    min-height: 100vh;
+  }
+
+  * {
+    box-sizing: border-box;
+  }
+
+  ::-webkit-scrollbar {
+    width: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: #e5e0d8;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: #2d2d2d;
+    border-radius: 3px;
+  }
+}
+
+@layer utilities {
+  .font-marker {
+    font-family: 'Kalam', cursive;
+  }
+  .font-hand {
+    font-family: 'Patrick Hand', cursive;
+  }
+}

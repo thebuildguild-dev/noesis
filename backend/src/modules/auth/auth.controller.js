@@ -1,4 +1,5 @@
 import * as authService from './auth.service.js'
+import * as resetService from './reset.service.js'
 import { success, created, error } from '../../utils/response.js'
 import config from '../../config/index.js'
 
@@ -19,7 +20,7 @@ function validateEmailPassword(res, { email, password }) {
 /** Register a new user account. */
 async function register(req, res, next) {
   try {
-    const { email, password } = req.body
+    const { email, password, name } = req.body
 
     if (!validateEmailPassword(res, { email, password })) return
 
@@ -27,8 +28,8 @@ async function register(req, res, next) {
       return error(res, 'Password must be at least 8 characters')
     }
 
-    const user = await authService.register(email, password)
-    return created(res, { user }, 'Account created successfully')
+    const data = await authService.register(email, password, name)
+    return created(res, data, 'Account created successfully')
   } catch (err) {
     next(err)
   }
@@ -146,4 +147,29 @@ async function updateProfile(req, res, next) {
   }
 }
 
-export { register, login, refresh, logout, forgotPassword, resetPassword, me, updateProfile }
+/**
+ * Reset account data for the authenticated user.
+ * - demo role: clears and re-seeds with 5 random habits + 14 random journal entries.
+ * - user role: deletes all habits and journal entries.
+ */
+async function resetAccount(req, res, next) {
+  try {
+    const user = await authService.getMe(req.user.id)
+    await resetService.resetAccount(user.id, user.role)
+    return success(res, null, 'Account data reset successfully')
+  } catch (err) {
+    next(err)
+  }
+}
+
+export {
+  register,
+  login,
+  refresh,
+  logout,
+  forgotPassword,
+  resetPassword,
+  me,
+  updateProfile,
+  resetAccount
+}

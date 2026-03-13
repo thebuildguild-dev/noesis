@@ -37,12 +37,14 @@ function hashToken(raw) {
 }
 
 /**
- * Register a new user. Throws 409 if the email is already in use.
+ * Register a new user, issue tokens, and return the session — identical shape to login.
+ * Throws 409 if the email is already in use.
  * @param {string} email
  * @param {string} password
- * @returns {Promise<Object>} Created user row.
+ * @param {string} [name]
+ * @returns {Promise<{ accessToken: string, refreshToken: string, user: Object }>}
  */
-async function register(email, password) {
+async function register(email, password, name) {
   const normalised = email.toLowerCase()
 
   const { rows: existing } = await query('SELECT id FROM users WHERE email = $1', [normalised])
@@ -54,16 +56,28 @@ async function register(email, password) {
 
   const passwordHash = await bcrypt.hash(password, SALT_ROUNDS)
   const { rows } = await query(
-    'INSERT INTO users (email, password_hash) VALUES ($1, $2) RETURNING id, email, created_at',
-    [normalised, passwordHash]
+    `INSERT INTO users (email, password_hash, name)
+     VALUES ($1, $2, $3)
+     RETURNING id, email, name, role, created_at, updated_at`,
+    [normalised, passwordHash, name?.trim() || null]
   )
 
   const user = rows[0]
 
+  const accessToken = generateAccessToken(user)
+  const refreshToken = generateRefreshToken()
+  const expiresAt = new Date(Date.now() + parseDurationMs(config.jwt.refreshExpiry))
+
+  await query('INSERT INTO refresh_tokens (user_id, token, expires_at) VALUES ($1, $2, $3)', [
+    user.id,
+    refreshToken,
+    expiresAt
+  ])
+
   const { subject, html } = templates.welcome({ email: user.email })
   sendEmail({ to: user.email, subject, html }).catch(() => {})
 
-  return user
+  return { accessToken, refreshToken, user }
 }
 
 /**
@@ -74,9 +88,10 @@ async function register(email, password) {
  * @returns {Promise<{ accessToken: string, refreshToken: string, user: Object }>}
  */
 async function login(email, password) {
-  const { rows } = await query('SELECT id, email, password_hash FROM users WHERE email = $1', [
-    email.toLowerCase()
-  ])
+  const { rows } = await query(
+    'SELECT id, email, name, role, password_hash, created_at, updated_at FROM users WHERE email = $1',
+    [email.toLowerCase()]
+  )
 
   // Constant-time check to avoid leaking whether the email exists.
   const user = rows[0] || null
@@ -111,7 +126,14 @@ async function login(email, password) {
   return {
     accessToken,
     refreshToken,
-    user: { id: user.id, email: user.email }
+    user: {
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      role: user.role,
+      created_at: user.created_at,
+      updated_at: user.updated_at
+    }
   }
 }
 
@@ -279,7 +301,7 @@ async function resetPassword(rawToken, newPassword) {
  */
 async function getMe(userId) {
   const { rows } = await query(
-    'SELECT id, email, name, created_at, updated_at FROM users WHERE id = $1',
+    'SELECT id, email, name, role, created_at, updated_at FROM users WHERE id = $1',
     [userId]
   )
   if (rows.length === 0) {
@@ -302,7 +324,7 @@ async function updateProfile(userId, { name }) {
     `UPDATE users
      SET name = $1, updated_at = NOW()
      WHERE id = $2
-     RETURNING id, email, name, created_at, updated_at`,
+     RETURNING id, email, name, role, created_at, updated_at`,
     [name, userId]
   )
   if (rows.length === 0) {

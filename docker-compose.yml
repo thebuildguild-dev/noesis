@@ -17,6 +17,20 @@ services:
     networks:
       - noesis-network
 
+  frontend:
+    build: ./frontend
+    env_file:
+      - .env
+    ports:
+      - '${FRONTEND_PORT}:5173'
+    volumes:
+      # Mount source for hot reload. The entrypoint script lives at
+      # /usr/local/bin inside the image and is unaffected by this mount.
+      - ./frontend:/app
+      - /app/node_modules
+    networks:
+      - noesis-network
+
   postgres:
     image: postgres:16
     environment:

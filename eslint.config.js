@@ -6,7 +6,7 @@ import prettierConfig from 'eslint-config-prettier'
 
 export default [
   {
-    ignores: ['node_modules/**', 'dist/**', 'build/**', 'coverage/**', '**/*.log']
+    ignores: ['**/node_modules/**', '**/dist/**', '**/build/**', '**/coverage/**', '**/*.log']
   },
   {
     files: ['backend/src/**/*.js', 'frontend/**/*.js'],
