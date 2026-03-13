@@ -1,5 +1,6 @@
 import { query } from '../../db/query.js'
 import { success } from '../../utils/response.js'
+import { audit } from '../../agents/auditor.agent.js'
 
 async function getMessages(req, res, next) {
   try {
@@ -24,4 +25,13 @@ async function getMessages(req, res, next) {
   }
 }
 
-export { getMessages }
+async function triggerAudit(req, res, next) {
+  try {
+    await audit()
+    success(res, null, 'Agent audit triggered')
+  } catch (err) {
+    next(err)
+  }
+}
+
+export { getMessages, triggerAudit }

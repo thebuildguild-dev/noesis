@@ -1,9 +1,10 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { User, Mail, LogOut, RotateCcw } from 'lucide-react'
+import { User, Mail, LogOut, RotateCcw, Zap } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth.js'
 import { useApi } from '../../hooks/useApi.js'
 import * as authApi from '../../api/auth.api.js'
+import { triggerAgents } from '../../api/agent.api.js'
 import { useAlertStore } from '../../store/alert.store.js'
 import { AppLayout } from '../../components/layout/AppLayout.jsx'
 import { PageHeader } from '../../components/layout/PageHeader.jsx'
@@ -22,6 +23,7 @@ export default function ProfilePage() {
   const { loading, error, call, clearError } = useApi()
   const { loading: resetLoading, call: resetCall } = useApi()
   const { showSuccess } = useAlertStore()
+  const { loading: triggerLoading, call: triggerCall } = useApi()
   const [name, setName] = useState(user?.name ?? '')
   const [confirming, setConfirming] = useState(false)
 
@@ -45,6 +47,11 @@ export default function ProfilePage() {
     } catch {
       setConfirming(false)
     }
+  }
+
+  const handleTriggerAgents = async () => {
+    await triggerCall(triggerAgents)
+    showSuccess('Agent audit triggered! Check notifications in ~10 seconds.')
   }
 
   const isDemo = user?.role === 'demo'
@@ -133,6 +140,21 @@ export default function ProfilePage() {
           </Button>
         )}
       </Card>
+
+      {/* Demo: trigger agents */}
+      {isDemo && (
+        <Card className="mb-6">
+          <h2 className="font-marker text-xl font-bold text-ink mb-2">Trigger AI Agents</h2>
+          <p className="font-hand text-ink mb-4">
+            Manually run the accountability agent audit to generate messages for broken streaks.
+            Watch the notification bell after triggering.
+          </p>
+          <Button onClick={handleTriggerAgents} disabled={triggerLoading}>
+            <Zap size={16} strokeWidth={2.5} />
+            {triggerLoading ? 'triggering...' : 'trigger agents →'}
+          </Button>
+        </Card>
+      )}
 
       {/* Logout */}
       <Card>
