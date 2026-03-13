@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
-import { Plus, CheckCircle2, Circle, Trash2, Flame, ChevronDown, ChevronUp } from 'lucide-react'
+import { Plus, CheckCircle2, Circle, Trash2, Flame } from 'lucide-react'
 import { useHabitsStore } from '../../store/habits.store.js'
+import { useAlertStore } from '../../store/alert.store.js'
 import { useApi } from '../../hooks/useApi.js'
 import { AppLayout } from '../../components/layout/AppLayout.jsx'
 import { PageHeader } from '../../components/layout/PageHeader.jsx'
@@ -9,8 +10,6 @@ import { Button } from '../../components/ui/Button.jsx'
 import { Input } from '../../components/ui/Input.jsx'
 import { Badge } from '../../components/ui/Badge.jsx'
 import { Spinner } from '../../components/ui/Spinner.jsx'
-import { Toast } from '../../components/ui/Toast.jsx'
-import { radius } from '../../utils/styles.js'
 
 function StreakPanel({ habitId }) {
   const { fetchStreak, getStreak } = useHabitsStore()
@@ -47,14 +46,19 @@ function StreakPanel({ habitId }) {
 
 function HabitCard({ habit, onComplete, onDelete }) {
   const [expanded, setExpanded] = useState(false)
+  const [confirming, setConfirming] = useState(false)
   const { loading: completing, call: callComplete } = useApi()
   const { loading: deleting, call: callDelete } = useApi()
+  const { showSuccess } = useAlertStore()
 
   const handleComplete = async () => {
     await callComplete(onComplete, habit.id)
   }
+
   const handleDelete = async () => {
-    if (confirm(`Delete "${habit.title}"?`)) await callDelete(onDelete, habit.id)
+    await callDelete(onDelete, habit.id)
+    showSuccess(`"${habit.title}" deleted`)
+    setConfirming(false)
   }
 
   return (
@@ -90,21 +94,40 @@ function HabitCard({ habit, onComplete, onDelete }) {
         </div>
 
         <div className="flex items-center gap-1 flex-shrink-0">
-          <button
-            onClick={() => setExpanded((v) => !v)}
-            className="p-1.5 text-pen-blue hover:bg-muted rounded transition-colors"
-            title="Show streak"
-          >
-            <Flame size={16} strokeWidth={2.5} />
-          </button>
-          <button
-            onClick={handleDelete}
-            disabled={deleting}
-            className="p-1.5 text-ink/30 hover:text-accent hover:bg-[#fff0f0] rounded transition-colors"
-            title="Delete habit"
-          >
-            <Trash2 size={16} strokeWidth={2.5} />
-          </button>
+          {confirming ? (
+            <>
+              <button
+                onClick={handleDelete}
+                disabled={deleting}
+                className="px-2 py-1 font-hand text-xs text-white bg-accent rounded border border-accent disabled:opacity-50"
+              >
+                {deleting ? '…' : 'yes'}
+              </button>
+              <button
+                onClick={() => setConfirming(false)}
+                className="px-2 py-1 font-hand text-xs text-ink/50 hover:text-ink rounded border border-muted"
+              >
+                no
+              </button>
+            </>
+          ) : (
+            <>
+              <button
+                onClick={() => setExpanded((v) => !v)}
+                className="p-1.5 text-pen-blue hover:bg-muted rounded transition-colors"
+                title="Show streak"
+              >
+                <Flame size={16} strokeWidth={2.5} />
+              </button>
+              <button
+                onClick={() => setConfirming(true)}
+                className="p-1.5 text-ink/30 hover:text-accent hover:bg-[#fff0f0] rounded transition-colors"
+                title="Delete habit"
+              >
+                <Trash2 size={16} strokeWidth={2.5} />
+              </button>
+            </>
+          )}
         </div>
       </div>
 
@@ -116,8 +139,8 @@ function HabitCard({ habit, onComplete, onDelete }) {
 export default function HabitsPage() {
   const { habits, loading, fetchHabits, createHabit, completeHabit, deleteHabit } = useHabitsStore()
   const { loading: creating, error, call, clearError } = useApi()
+  const { showSuccess } = useAlertStore()
   const [title, setTitle] = useState('')
-  const [toast, setToast] = useState(null)
 
   useEffect(() => {
     fetchHabits()
@@ -129,7 +152,7 @@ export default function HabitsPage() {
     try {
       await call(createHabit, title.trim())
       setTitle('')
-      setToast({ message: 'Habit added!', type: 'success' })
+      showSuccess('Habit added!')
     } catch {
       // error state handled by useApi
     }
@@ -148,7 +171,6 @@ export default function HabitsPage() {
         }
       />
 
-      {/* Add habit form */}
       <Card className="mb-6" decoration="tape">
         <h2 className="font-marker text-lg font-bold text-ink mb-3">Add a new habit</h2>
         <form onSubmit={handleCreate} className="flex gap-3">
@@ -165,7 +187,6 @@ export default function HabitsPage() {
         {error && <p className="font-hand text-sm text-accent mt-2">{error}</p>}
       </Card>
 
-      {/* Habits list */}
       {loading ? (
         <div className="flex justify-center py-12">
           <Spinner size="lg" />
@@ -182,8 +203,6 @@ export default function HabitsPage() {
           ))}
         </div>
       )}
-
-      <Toast message={toast?.message} type={toast?.type} onClose={() => setToast(null)} />
     </AppLayout>
   )
 }

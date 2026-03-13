@@ -8,7 +8,13 @@ const spec = {
       'REST API for Noesis — a habit-tracking and journaling application.\n\n' +
       '## Authentication\n' +
       'Protected endpoints require a `Bearer` JWT in the `Authorization` header.\n' +
-      'Obtain tokens via `POST /auth/login` or `POST /auth/refresh`.',
+      'Obtain tokens via `POST /auth/login` or `POST /auth/refresh`.\n\n' +
+      '## Response envelope\n' +
+      'All responses follow the same envelope shape:\n' +
+      '```json\n' +
+      '{ "success": true, "message": "...", "data": { ... } }\n' +
+      '```\n' +
+      'On errors: `{ "success": false, "message": "..." }`',
     version: '1.0.0'
   },
   servers: [{ url: '/api', description: 'API' }],
@@ -16,7 +22,7 @@ const spec = {
     { name: 'System', description: 'Health and status' },
     {
       name: 'Authentication',
-      description: 'Register, login, and token management'
+      description: 'Register, login, token management, and profile'
     },
     { name: 'Habits', description: 'Habit CRUD and completion tracking' },
     { name: 'Streak', description: 'Streak statistics for a habit' },
@@ -41,49 +47,24 @@ const spec = {
         }
       },
       MessageResponse: {
+        description: 'Success response with no data payload',
         type: 'object',
         required: ['success', 'message'],
         properties: {
           success: { type: 'boolean', example: true },
-          message: { type: 'string' }
+          message: { type: 'string' },
+          data: { nullable: true, example: null }
         }
       },
       User: {
         type: 'object',
         properties: {
           id: { type: 'integer', example: 1 },
-          email: {
-            type: 'string',
-            format: 'email',
-            example: 'user@example.com'
-          },
-          created_at: { type: 'string', format: 'date-time' }
-        }
-      },
-      UserSummary: {
-        type: 'object',
-        description: 'Minimal user object returned with tokens',
-        properties: {
-          id: { type: 'integer', example: 1 },
-          email: {
-            type: 'string',
-            format: 'email',
-            example: 'user@example.com'
-          }
-        }
-      },
-      Tokens: {
-        type: 'object',
-        required: ['accessToken', 'refreshToken'],
-        properties: {
-          accessToken: {
-            type: 'string',
-            description: 'Short-lived JWT for API requests'
-          },
-          refreshToken: {
-            type: 'string',
-            description: 'Long-lived opaque token for rotation'
-          }
+          email: { type: 'string', format: 'email', example: 'user@example.com' },
+          name: { type: 'string', nullable: true, example: 'Alice' },
+          role: { type: 'string', enum: ['user', 'demo'], example: 'user' },
+          created_at: { type: 'string', format: 'date-time' },
+          updated_at: { type: 'string', format: 'date-time' }
         }
       },
       Habit: {
@@ -115,11 +96,7 @@ const spec = {
         properties: {
           id: { type: 'integer', example: 1 },
           habit_id: { type: 'integer', example: 1 },
-          completed_on: {
-            type: 'string',
-            format: 'date',
-            example: '2026-03-13'
-          }
+          completed_date: { type: 'string', format: 'date', example: '2026-03-13' }
         }
       },
       Streak: {
@@ -176,6 +153,15 @@ const spec = {
           'application/json': {
             schema: { $ref: '#/components/schemas/ErrorResponse' },
             example: { success: false, message: 'Access token required' }
+          }
+        }
+      },
+      Forbidden: {
+        description: 'Access denied — you do not own this resource',
+        content: {
+          'application/json': {
+            schema: { $ref: '#/components/schemas/ErrorResponse' },
+            example: { success: false, message: 'Access denied' }
           }
         }
       },
@@ -242,16 +228,9 @@ const spec = {
                 type: 'object',
                 required: ['email', 'password'],
                 properties: {
-                  email: {
-                    type: 'string',
-                    format: 'email',
-                    example: 'user@example.com'
-                  },
-                  password: {
-                    type: 'string',
-                    minLength: 8,
-                    example: 'securepass123'
-                  }
+                  email: { type: 'string', format: 'email', example: 'user@example.com' },
+                  password: { type: 'string', minLength: 8, example: 'securepass123' },
+                  name: { type: 'string', example: 'Alice', description: 'Optional display name' }
                 }
               }
             }
@@ -259,14 +238,22 @@ const spec = {
         },
         responses: {
           201: {
-            description: 'User registered successfully. A welcome email is sent.',
+            description: 'User registered. Tokens issued and welcome email sent.',
             content: {
               'application/json': {
                 schema: {
                   type: 'object',
                   properties: {
                     success: { type: 'boolean', example: true },
-                    user: { $ref: '#/components/schemas/User' }
+                    message: { type: 'string', example: 'Account created successfully' },
+                    data: {
+                      type: 'object',
+                      properties: {
+                        accessToken: { type: 'string', description: 'Short-lived JWT' },
+                        refreshToken: { type: 'string', description: 'Long-lived opaque token' },
+                        user: { $ref: '#/components/schemas/User' }
+                      }
+                    }
                   }
                 }
               }
@@ -300,11 +287,7 @@ const spec = {
                 type: 'object',
                 required: ['email', 'password'],
                 properties: {
-                  email: {
-                    type: 'string',
-                    format: 'email',
-                    example: 'user@example.com'
-                  },
+                  email: { type: 'string', format: 'email', example: 'user@example.com' },
                   password: { type: 'string', example: 'securepass123' }
                 }
               }
@@ -317,21 +300,19 @@ const spec = {
             content: {
               'application/json': {
                 schema: {
-                  allOf: [
-                    {
+                  type: 'object',
+                  properties: {
+                    success: { type: 'boolean', example: true },
+                    message: { type: 'string', example: 'Login successful' },
+                    data: {
                       type: 'object',
                       properties: {
-                        success: { type: 'boolean', example: true }
-                      }
-                    },
-                    { $ref: '#/components/schemas/Tokens' },
-                    {
-                      type: 'object',
-                      properties: {
-                        user: { $ref: '#/components/schemas/UserSummary' }
+                        accessToken: { type: 'string', description: 'Short-lived JWT' },
+                        refreshToken: { type: 'string', description: 'Long-lived opaque token' },
+                        user: { $ref: '#/components/schemas/User' }
                       }
                     }
-                  ]
+                  }
                 }
               }
             }
@@ -378,15 +359,18 @@ const spec = {
             content: {
               'application/json': {
                 schema: {
-                  allOf: [
-                    {
+                  type: 'object',
+                  properties: {
+                    success: { type: 'boolean', example: true },
+                    message: { type: 'string', example: 'Tokens refreshed' },
+                    data: {
                       type: 'object',
                       properties: {
-                        success: { type: 'boolean', example: true }
+                        accessToken: { type: 'string', description: 'Short-lived JWT' },
+                        refreshToken: { type: 'string', description: 'New long-lived opaque token' }
                       }
-                    },
-                    { $ref: '#/components/schemas/Tokens' }
-                  ]
+                    }
+                  }
                 }
               }
             }
@@ -430,7 +414,7 @@ const spec = {
             content: {
               'application/json': {
                 schema: { $ref: '#/components/schemas/MessageResponse' },
-                example: { success: true, message: 'Logged out successfully' }
+                example: { success: true, message: 'Logged out successfully', data: null }
               }
             }
           },
@@ -456,11 +440,7 @@ const spec = {
                 type: 'object',
                 required: ['email'],
                 properties: {
-                  email: {
-                    type: 'string',
-                    format: 'email',
-                    example: 'user@example.com'
-                  }
+                  email: { type: 'string', format: 'email', example: 'user@example.com' }
                 }
               }
             }
@@ -474,7 +454,8 @@ const spec = {
                 schema: { $ref: '#/components/schemas/MessageResponse' },
                 example: {
                   success: true,
-                  message: 'If that email is registered, a reset link has been sent.'
+                  message: 'If that email is registered, a reset link has been sent.',
+                  data: null
                 }
               }
             }
@@ -504,11 +485,7 @@ const spec = {
                     description: '64-hex-char raw token from the reset email link',
                     example: 'd4e5f6...'
                   },
-                  password: {
-                    type: 'string',
-                    minLength: 8,
-                    example: 'newpassword123'
-                  }
+                  password: { type: 'string', minLength: 8, example: 'newpassword123' }
                 }
               }
             }
@@ -522,7 +499,8 @@ const spec = {
                 schema: { $ref: '#/components/schemas/MessageResponse' },
                 example: {
                   success: true,
-                  message: 'Password updated successfully. Please log in.'
+                  message: 'Password updated successfully. Please log in.',
+                  data: null
                 }
               }
             }
@@ -535,6 +513,126 @@ const spec = {
               }
             }
           },
+          429: { $ref: '#/components/responses/TooManyRequests' }
+        }
+      }
+    },
+
+    '/auth/me': {
+      get: {
+        summary: 'Get current user profile',
+        operationId: 'getMe',
+        tags: ['Authentication'],
+        security: [{ bearerAuth: [] }],
+        responses: {
+          200: {
+            description: 'Authenticated user profile',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    success: { type: 'boolean', example: true },
+                    message: { type: 'string', example: 'User profile fetched' },
+                    data: {
+                      type: 'object',
+                      properties: {
+                        user: { $ref: '#/components/schemas/User' }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          401: { $ref: '#/components/responses/Unauthorized' },
+          429: { $ref: '#/components/responses/TooManyRequests' }
+        }
+      }
+    },
+
+    '/auth/profile': {
+      put: {
+        summary: 'Update current user profile',
+        description: 'Update display name. Blocked for demo accounts.',
+        operationId: 'updateProfile',
+        tags: ['Authentication'],
+        security: [{ bearerAuth: [] }],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                required: ['name'],
+                properties: {
+                  name: { type: 'string', example: 'Alice' }
+                }
+              }
+            }
+          }
+        },
+        responses: {
+          200: {
+            description: 'Profile updated',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    success: { type: 'boolean', example: true },
+                    message: { type: 'string', example: 'Profile updated' },
+                    data: {
+                      type: 'object',
+                      properties: {
+                        user: { $ref: '#/components/schemas/User' }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          400: { $ref: '#/components/responses/BadRequest' },
+          401: { $ref: '#/components/responses/Unauthorized' },
+          403: {
+            description: 'Demo accounts cannot be modified',
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/ErrorResponse' },
+                example: { success: false, message: 'Demo account cannot be modified' }
+              }
+            }
+          },
+          429: { $ref: '#/components/responses/TooManyRequests' }
+        }
+      }
+    },
+
+    '/auth/reset': {
+      post: {
+        summary: 'Reset account data',
+        description:
+          'Deletes all habits and journal entries for the authenticated user. ' +
+          'For demo accounts, data is cleared and replaced with fresh seed data.',
+        operationId: 'resetAccount',
+        tags: ['Authentication'],
+        security: [{ bearerAuth: [] }],
+        responses: {
+          200: {
+            description: 'Account data reset successfully',
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/MessageResponse' },
+                example: {
+                  success: true,
+                  message: 'Account data reset successfully',
+                  data: null
+                }
+              }
+            }
+          },
+          401: { $ref: '#/components/responses/Unauthorized' },
           429: { $ref: '#/components/responses/TooManyRequests' }
         }
       }
@@ -554,11 +652,7 @@ const spec = {
                 type: 'object',
                 required: ['title'],
                 properties: {
-                  title: {
-                    type: 'string',
-                    maxLength: 255,
-                    example: 'Morning run'
-                  }
+                  title: { type: 'string', maxLength: 255, example: 'Morning run' }
                 }
               }
             }
@@ -573,7 +667,13 @@ const spec = {
                   type: 'object',
                   properties: {
                     success: { type: 'boolean', example: true },
-                    habit: { $ref: '#/components/schemas/Habit' }
+                    message: { type: 'string', example: 'Habit created' },
+                    data: {
+                      type: 'object',
+                      properties: {
+                        habit: { $ref: '#/components/schemas/Habit' }
+                      }
+                    }
                   }
                 }
               }
@@ -600,10 +700,14 @@ const spec = {
                   type: 'object',
                   properties: {
                     success: { type: 'boolean', example: true },
-                    habits: {
-                      type: 'array',
-                      items: {
-                        $ref: '#/components/schemas/HabitWithCompletion'
+                    message: { type: 'string', example: 'Habits fetched' },
+                    data: {
+                      type: 'object',
+                      properties: {
+                        habits: {
+                          type: 'array',
+                          items: { $ref: '#/components/schemas/HabitWithCompletion' }
+                        }
                       }
                     }
                   }
@@ -638,11 +742,12 @@ const spec = {
             content: {
               'application/json': {
                 schema: { $ref: '#/components/schemas/MessageResponse' },
-                example: { success: true, message: 'Habit deleted' }
+                example: { success: true, message: 'Habit deleted', data: null }
               }
             }
           },
           401: { $ref: '#/components/responses/Unauthorized' },
+          403: { $ref: '#/components/responses/Forbidden' },
           404: { $ref: '#/components/responses/NotFound' },
           429: { $ref: '#/components/responses/TooManyRequests' }
         }
@@ -691,7 +796,13 @@ const spec = {
                   type: 'object',
                   properties: {
                     success: { type: 'boolean', example: true },
-                    log: { $ref: '#/components/schemas/HabitLog' }
+                    message: { type: 'string', example: 'Habit marked as complete' },
+                    data: {
+                      type: 'object',
+                      properties: {
+                        log: { $ref: '#/components/schemas/HabitLog' }
+                      }
+                    }
                   }
                 }
               }
@@ -704,12 +815,14 @@ const spec = {
                 schema: { $ref: '#/components/schemas/MessageResponse' },
                 example: {
                   success: true,
-                  message: 'Already completed for this date'
+                  message: 'Already completed for this date',
+                  data: null
                 }
               }
             }
           },
           401: { $ref: '#/components/responses/Unauthorized' },
+          403: { $ref: '#/components/responses/Forbidden' },
           404: { $ref: '#/components/responses/NotFound' },
           429: { $ref: '#/components/responses/TooManyRequests' }
         }
@@ -740,13 +853,20 @@ const spec = {
                   type: 'object',
                   properties: {
                     success: { type: 'boolean', example: true },
-                    streak: { $ref: '#/components/schemas/Streak' }
+                    message: { type: 'string', example: 'Streak fetched' },
+                    data: {
+                      type: 'object',
+                      properties: {
+                        streak: { $ref: '#/components/schemas/Streak' }
+                      }
+                    }
                   }
                 }
               }
             }
           },
           401: { $ref: '#/components/responses/Unauthorized' },
+          403: { $ref: '#/components/responses/Forbidden' },
           404: { $ref: '#/components/responses/NotFound' },
           429: { $ref: '#/components/responses/TooManyRequests' }
         }
@@ -785,7 +905,13 @@ const spec = {
                   type: 'object',
                   properties: {
                     success: { type: 'boolean', example: true },
-                    entry: { $ref: '#/components/schemas/JournalEntry' }
+                    message: { type: 'string', example: 'Journal entry created' },
+                    data: {
+                      type: 'object',
+                      properties: {
+                        entry: { $ref: '#/components/schemas/JournalEntry' }
+                      }
+                    }
                   }
                 }
               }
@@ -824,11 +950,17 @@ const spec = {
                   type: 'object',
                   properties: {
                     success: { type: 'boolean', example: true },
-                    entries: {
-                      type: 'array',
-                      items: { $ref: '#/components/schemas/JournalEntry' }
-                    },
-                    pagination: { $ref: '#/components/schemas/Pagination' }
+                    message: { type: 'string', example: 'Journal entries fetched' },
+                    data: {
+                      type: 'object',
+                      properties: {
+                        entries: {
+                          type: 'array',
+                          items: { $ref: '#/components/schemas/JournalEntry' }
+                        },
+                        pagination: { $ref: '#/components/schemas/Pagination' }
+                      }
+                    }
                   }
                 }
               }
@@ -879,7 +1011,13 @@ const spec = {
                   type: 'object',
                   properties: {
                     success: { type: 'boolean', example: true },
-                    entry: { $ref: '#/components/schemas/JournalEntry' }
+                    message: { type: 'string', example: 'Journal entry updated' },
+                    data: {
+                      type: 'object',
+                      properties: {
+                        entry: { $ref: '#/components/schemas/JournalEntry' }
+                      }
+                    }
                   }
                 }
               }
@@ -887,6 +1025,7 @@ const spec = {
           },
           400: { $ref: '#/components/responses/BadRequest' },
           401: { $ref: '#/components/responses/Unauthorized' },
+          403: { $ref: '#/components/responses/Forbidden' },
           404: { $ref: '#/components/responses/NotFound' },
           429: { $ref: '#/components/responses/TooManyRequests' }
         }
@@ -911,11 +1050,12 @@ const spec = {
             content: {
               'application/json': {
                 schema: { $ref: '#/components/schemas/MessageResponse' },
-                example: { success: true, message: 'Journal entry deleted' }
+                example: { success: true, message: 'Journal entry deleted', data: null }
               }
             }
           },
           401: { $ref: '#/components/responses/Unauthorized' },
+          403: { $ref: '#/components/responses/Forbidden' },
           404: { $ref: '#/components/responses/NotFound' },
           429: { $ref: '#/components/responses/TooManyRequests' }
         }

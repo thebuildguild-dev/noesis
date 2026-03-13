@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Trash2, Pencil, Check, X, ChevronLeft, ChevronRight } from 'lucide-react'
 import { useJournalStore } from '../../store/journal.store.js'
+import { useAlertStore } from '../../store/alert.store.js'
 import { useApi } from '../../hooks/useApi.js'
 import { AppLayout } from '../../components/layout/AppLayout.jsx'
 import { PageHeader } from '../../components/layout/PageHeader.jsx'
@@ -8,7 +9,6 @@ import { Card } from '../../components/ui/Card.jsx'
 import { Button } from '../../components/ui/Button.jsx'
 import { Textarea } from '../../components/ui/Input.jsx'
 import { Spinner } from '../../components/ui/Spinner.jsx'
-import { Toast } from '../../components/ui/Toast.jsx'
 
 function formatDate(d) {
   return new Date(d).toLocaleString('en-US', {
@@ -24,8 +24,10 @@ function formatDate(d) {
 
 function EntryCard({ entry, onUpdate, onDelete }) {
   const [editing, setEditing] = useState(false)
+  const [confirming, setConfirming] = useState(false)
   const [draft, setDraft] = useState(entry.content)
   const { loading, call } = useApi()
+  const { showSuccess } = useAlertStore()
 
   const save = async () => {
     if (!draft.trim() || draft === entry.content) {
@@ -34,6 +36,7 @@ function EntryCard({ entry, onUpdate, onDelete }) {
     }
     await call(onUpdate, entry.id, draft.trim())
     setEditing(false)
+    showSuccess('Entry updated!')
   }
 
   const cancel = () => {
@@ -42,7 +45,9 @@ function EntryCard({ entry, onUpdate, onDelete }) {
   }
 
   const handleDelete = () => {
-    if (confirm('Delete this entry?')) call(onDelete, entry.id)
+    call(onDelete, entry.id)
+    showSuccess('Entry deleted')
+    setConfirming(false)
   }
 
   return (
@@ -50,7 +55,7 @@ function EntryCard({ entry, onUpdate, onDelete }) {
       <div className="flex items-start justify-between gap-2 mb-2">
         <span className="font-hand text-xs text-ink/40">{formatDate(entry.created_at)}</span>
         <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-          {!editing && (
+          {!editing && !confirming && (
             <>
               <button
                 onClick={() => setEditing(true)}
@@ -59,10 +64,26 @@ function EntryCard({ entry, onUpdate, onDelete }) {
                 <Pencil size={14} strokeWidth={2.5} />
               </button>
               <button
-                onClick={handleDelete}
+                onClick={() => setConfirming(true)}
                 className="p-1 text-ink/40 hover:text-accent transition-colors"
               >
                 <Trash2 size={14} strokeWidth={2.5} />
+              </button>
+            </>
+          )}
+          {confirming && (
+            <>
+              <button
+                onClick={handleDelete}
+                className="px-2 py-0.5 font-hand text-xs text-white bg-accent rounded border border-accent"
+              >
+                yes
+              </button>
+              <button
+                onClick={() => setConfirming(false)}
+                className="px-2 py-0.5 font-hand text-xs text-ink/50 hover:text-ink rounded border border-muted"
+              >
+                no
               </button>
             </>
           )}
@@ -94,9 +115,9 @@ export default function JournalPage() {
   const { entries, pagination, loading, fetchEntries, createEntry, updateEntry, deleteEntry } =
     useJournalStore()
   const { loading: posting, error, call, clearError } = useApi()
+  const { showSuccess } = useAlertStore()
   const [content, setContent] = useState('')
   const [page, setPage] = useState(1)
-  const [toast, setToast] = useState(null)
 
   useEffect(() => {
     fetchEntries(page)
@@ -108,7 +129,7 @@ export default function JournalPage() {
     try {
       await call(createEntry, content.trim())
       setContent('')
-      setToast({ message: 'Entry saved!', type: 'success' })
+      showSuccess('Entry saved!')
     } catch {
       // error handled via useApi
     }
@@ -118,7 +139,6 @@ export default function JournalPage() {
     <AppLayout>
       <PageHeader title="Journal" subtitle="capture your thoughts" />
 
-      {/* New entry */}
       <Card className="mb-6" decoration="tape">
         <h2 className="font-marker text-lg font-bold text-ink mb-3">New entry</h2>
         <form onSubmit={handleCreate} className="flex flex-col gap-3">
@@ -137,7 +157,6 @@ export default function JournalPage() {
         </form>
       </Card>
 
-      {/* Entries list */}
       <div className="flex items-center justify-between mb-4">
         <h2 className="font-marker text-xl font-bold text-ink">Past entries</h2>
         {pagination && (
@@ -162,7 +181,6 @@ export default function JournalPage() {
         </div>
       )}
 
-      {/* Pagination */}
       {pagination && pagination.totalPages > 1 && (
         <div className="flex items-center justify-center gap-4 mt-8">
           <Button
@@ -186,8 +204,6 @@ export default function JournalPage() {
           </Button>
         </div>
       )}
-
-      <Toast message={toast?.message} type={toast?.type} onClose={() => setToast(null)} />
     </AppLayout>
   )
 }

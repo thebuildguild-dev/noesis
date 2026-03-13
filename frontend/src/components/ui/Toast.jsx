@@ -1,5 +1,6 @@
 import { useEffect } from 'react'
 import { X } from 'lucide-react'
+import { useAlertStore } from '../../store/alert.store.js'
 
 const typeStyles = {
   error: 'bg-accent text-white border-accent',
@@ -20,7 +21,7 @@ export function Toast({ message, type = 'error', onClose, duration = 4000 }) {
     <div
       style={{ borderRadius: '8px 4px 10px 4px / 4px 10px 4px 8px' }}
       className={[
-        'fixed bottom-6 right-6 z-50 flex items-center gap-3',
+        'fixed top-6 right-6 z-50 flex items-center gap-3',
         'px-5 py-3 border-2 shadow-hard font-hand text-base max-w-sm',
         typeStyles[type]
       ].join(' ')}
@@ -31,4 +32,9 @@ export function Toast({ message, type = 'error', onClose, duration = 4000 }) {
       </button>
     </div>
   )
+}
+
+export function ToastContainer() {
+  const { toast, dismiss } = useAlertStore()
+  return <Toast message={toast?.message} type={toast?.type} onClose={dismiss} />
 }

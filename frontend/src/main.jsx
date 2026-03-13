@@ -2,12 +2,14 @@ import React from 'react'
 import ReactDOM from 'react-dom/client'
 import { BrowserRouter } from 'react-router-dom'
 import { AppRouter } from './router.jsx'
+import { ToastContainer } from './components/ui/Toast.jsx'
 import './index.css'
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <BrowserRouter>
       <AppRouter />
+      <ToastContainer />
     </BrowserRouter>
   </React.StrictMode>
 )

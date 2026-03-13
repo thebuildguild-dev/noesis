@@ -4,6 +4,8 @@ import { CheckCircle2, Circle, Flame, BookOpen, ArrowRight } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth.js'
 import { useHabitsStore } from '../../store/habits.store.js'
 import { useJournalStore } from '../../store/journal.store.js'
+import { useAlertStore } from '../../store/alert.store.js'
+import { useApi } from '../../hooks/useApi.js'
 import { AppLayout } from '../../components/layout/AppLayout.jsx'
 import { PageHeader } from '../../components/layout/PageHeader.jsx'
 import { Card } from '../../components/ui/Card.jsx'
@@ -27,14 +29,37 @@ function formatDate(d) {
   })
 }
 
-function HabitRow({ habit }) {
+function HabitRow({ habit, onComplete }) {
+  const { loading: completing, call: callComplete } = useApi()
+  const { showError } = useAlertStore()
+
+  const handleComplete = async () => {
+    try {
+      await callComplete(onComplete, habit.id)
+    } catch (err) {
+      showError(err.message ?? 'Failed to complete habit')
+    }
+  }
+
   return (
     <div className="flex items-center gap-3 py-2.5">
-      {habit.completed_today ? (
-        <CheckCircle2 size={20} strokeWidth={2.5} className="text-[#4caf50] flex-shrink-0" />
-      ) : (
-        <Circle size={20} strokeWidth={2.5} className="text-ink/30 flex-shrink-0" />
-      )}
+      <button
+        onClick={handleComplete}
+        disabled={habit.completed_today || completing}
+        className="flex-shrink-0 disabled:cursor-default"
+      >
+        {habit.completed_today ? (
+          <CheckCircle2 size={20} strokeWidth={2.5} className="text-[#4caf50]" />
+        ) : completing ? (
+          <Spinner size="sm" />
+        ) : (
+          <Circle
+            size={20}
+            strokeWidth={2.5}
+            className="text-ink/30 hover:text-ink transition-colors"
+          />
+        )}
+      </button>
       <span
         className={`font-hand text-base flex-1 ${habit.completed_today ? 'line-through text-ink/40' : 'text-ink'}`}
       >
@@ -51,7 +76,7 @@ function HabitRow({ habit }) {
 
 export default function DashboardPage() {
   const { user } = useAuth()
-  const { habits, loading: hLoading, fetchHabits } = useHabitsStore()
+  const { habits, loading: hLoading, fetchHabits, completeHabit } = useHabitsStore()
   const { entries, loading: jLoading, fetchEntries } = useJournalStore()
 
   useEffect(() => {
@@ -121,7 +146,7 @@ export default function DashboardPage() {
           ) : (
             <div className="divide-y divide-dashed divide-muted">
               {habits.slice(0, 6).map((h) => (
-                <HabitRow key={h.id} habit={h} />
+                <HabitRow key={h.id} habit={h} onComplete={completeHabit} />
               ))}
             </div>
           )}

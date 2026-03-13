@@ -4,12 +4,12 @@ import { User, Mail, LogOut, RotateCcw } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth.js'
 import { useApi } from '../../hooks/useApi.js'
 import * as authApi from '../../api/auth.api.js'
+import { useAlertStore } from '../../store/alert.store.js'
 import { AppLayout } from '../../components/layout/AppLayout.jsx'
 import { PageHeader } from '../../components/layout/PageHeader.jsx'
 import { Card } from '../../components/ui/Card.jsx'
 import { Button } from '../../components/ui/Button.jsx'
 import { Input } from '../../components/ui/Input.jsx'
-import { Toast } from '../../components/ui/Toast.jsx'
 
 function formatDate(d) {
   if (!d) return '—'
@@ -21,15 +21,15 @@ export default function ProfilePage() {
   const navigate = useNavigate()
   const { loading, error, call, clearError } = useApi()
   const { loading: resetLoading, call: resetCall } = useApi()
+  const { showSuccess } = useAlertStore()
   const [name, setName] = useState(user?.name ?? '')
-  const [toast, setToast] = useState(null)
   const [confirming, setConfirming] = useState(false)
 
   const handleUpdate = async (e) => {
     e.preventDefault()
     const { data } = await call(authApi.updateProfile, { name: name.trim() })
     setUser(data.user)
-    setToast({ message: 'Profile updated!', type: 'success' })
+    showSuccess('Profile updated!')
   }
 
   const handleLogout = async () => {
@@ -41,7 +41,7 @@ export default function ProfilePage() {
     try {
       await resetCall(authApi.resetAccount)
       setConfirming(false)
-      setToast({ message: 'Data reset successfully!', type: 'success' })
+      showSuccess('Data reset successfully!')
     } catch {
       setConfirming(false)
     }
@@ -142,8 +142,6 @@ export default function ProfilePage() {
           <LogOut size={16} strokeWidth={2.5} /> sign out
         </Button>
       </Card>
-
-      <Toast message={toast?.message} type={toast?.type} onClose={() => setToast(null)} />
     </AppLayout>
   )
 }

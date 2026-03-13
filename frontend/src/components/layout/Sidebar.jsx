@@ -21,7 +21,7 @@ export function Sidebar() {
   }
 
   return (
-    <aside className="hidden md:flex flex-col w-[240px] flex-shrink-0 border-r-2 border-ink bg-paper min-h-screen">
+    <aside className="hidden md:flex flex-col w-[240px] flex-shrink-0 border-r-2 border-ink bg-paper h-screen overflow-hidden">
       {/* Logo */}
       <div className="px-6 py-6 border-b-2 border-ink">
         <span className="font-marker text-2xl font-bold text-ink">{config.app.name}</span>
